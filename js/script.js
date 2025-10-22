@@ -24,38 +24,56 @@ document.addEventListener('DOMContentLoaded', () => {
     const authModal = document.getElementById('authModal');
     const loginForm = document.getElementById('login-form');
     const signupForm = document.getElementById('signup-form');
-    const buyOrSellModal = document.getElementById('buyOrSellModal');
-
+    const sellForm = document.getElementById('sell-form'); // Added for validation
+    const buyForm = document.getElementById('buy-form');   // Added for validation
 
     // =================================================================
     // PART 1: MODAL AND UI LOGIC
     // =================================================================
 
-    // --- Modal Helper Functions --- (*** THIS IS THE CORRECTED PART ***)
+    // --- Modal Helper Functions ---
     const openModal = (modalId) => {
       const modal = document.getElementById(modalId);
       if (modal) {
-        modal.classList.add('active'); // Use classList to show modal
+        modal.style.display = 'flex';
       }
     };
 
     const closeModal = (modal) => {
       if (modal) {
-        modal.classList.remove('active'); // Use classList to hide modal
+        modal.style.display = 'none';
       }
     };
 
-    // --- Header "Login / Sign Up" Button ---
-    const loginSignupBtn = document.getElementById('login-signup-btn-desktop');
-    if (loginSignupBtn) {
-      loginSignupBtn.addEventListener('click', () => {
+    // --- Header "Login / Sign Up" Button (Desktop) ---
+    const loginSignupBtnDesktop = document.getElementById('login-signup-btn-desktop');
+    if (loginSignupBtnDesktop) {
+      loginSignupBtnDesktop.addEventListener('click', () => {
         if (currentUser) {
-          // If user is logged in, log them out
           auth.signOut();
         } else {
-          // If user is logged out, show login modal
           openModal('authModal');
           resetAuthForms();
+        }
+      });
+    }
+
+    // --- Event Listener for Mobile Login/Signup Button ---
+    const loginSignupBtnMobile = document.getElementById('login-signup-btn-mobile');
+    const mobileMenu = document.getElementById('mobile-menu'); // Moved mobileMenu definition up
+    if (loginSignupBtnMobile) {
+      loginSignupBtnMobile.addEventListener('click', () => {
+        if (currentUser) {
+          auth.signOut();
+          if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+             mobileMenu.classList.add('hidden'); // Close menu on logout
+          }
+        } else {
+          openModal('authModal');
+          resetAuthForms();
+           if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+             mobileMenu.classList.add('hidden'); // Close menu when opening login
+          }
         }
       });
     }
@@ -86,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           document.getElementById('modal-product-wattage').textContent = title.split('W')[0] + 'W';
           document.getElementById('modal-product-age').textContent = condition.match(/\(([^)]+)\)/)[1];
-        } catch (err) { /* ignore if parsing fails */ }
+        } catch (err) { /* ignore */ }
         document.getElementById('modal-product-status').textContent = "Expert Verified";
       });
     });
@@ -123,28 +141,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Mobile Menu Button ---
     const mobileMenuBtn = document.getElementById('mobile-menu-button');
-    const mobileMenu = document.getElementById('mobile-menu');
+    // mobileMenu already defined above
     if (mobileMenuBtn && mobileMenu) {
       mobileMenuBtn.addEventListener('click', () => {
         mobileMenu.classList.toggle('hidden');
       });
     }
 
-    // --- Buy/Sell Modal Buttons ---
+    // --- Buy/Sell Modal Buttons (with Login Check) ---
     const buyBtn = document.getElementById('buy-btn');
     const sellBtn = document.getElementById('sell-btn');
+    const buyOrSellModal = document.getElementById('buyOrSellModal');
 
     if (buyBtn && buyOrSellModal) {
       buyBtn.addEventListener('click', () => {
-        closeModal(buyOrSellModal); // Close the current modal
-        openModal('buyRequestModal'); // Open the "Buy Request" modal
+        closeModal(buyOrSellModal);
+        if (currentUser) {
+           openModal('buyRequestModal');
+        } else {
+           alert("Please log in or sign up to buy panels.");
+           openModal('authModal');
+           resetAuthForms();
+        }
       });
     }
 
     if (sellBtn && buyOrSellModal) {
       sellBtn.addEventListener('click', () => {
-        closeModal(buyOrSellModal); // Close the current modal
-        openModal('sellPanelModal'); // Open the "Sell Panel" modal
+        closeModal(buyOrSellModal);
+        if (currentUser) {
+            openModal('sellPanelModal');
+        } else {
+            alert("Please log in or sign up to sell panels.");
+            openModal('authModal');
+            resetAuthForms();
+        }
       });
     }
 
@@ -189,19 +220,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // =================================================================
-    // PART 2: FIREBASE AUTH LOGIC
+    // PART 2: FIREBASE AUTH LOGIC & FORM VALIDATION
     // =================================================================
 
     // --- CORE AUTH LOGIC ---
     auth.onAuthStateChanged(user => {
       currentUser = user;
       const loginBtnDesktop = document.getElementById('login-signup-btn-desktop');
+      const loginBtnMobile = document.getElementById('login-signup-btn-mobile');
       if (user) {
         console.log("User is signed in:", user.phoneNumber);
         if (loginBtnDesktop) loginBtnDesktop.textContent = 'Logout';
+        if (loginBtnMobile) loginBtnMobile.textContent = 'Logout';
       } else {
         console.log("User is signed out.");
         if (loginBtnDesktop) loginBtnDesktop.textContent = 'Login / Sign Up';
+        if (loginBtnMobile) loginBtnMobile.textContent = 'Login / Sign Up';
       }
     });
 
@@ -209,33 +243,28 @@ document.addEventListener('DOMContentLoaded', () => {
     function clearRecaptcha() {
       if (window.recaptchaVerifier) {
         window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = null; // Set it to null after clearing
+        window.recaptchaVerifier = null;
       }
     }
 
-    // Function to reset auth forms to their original state
+    // Function to reset auth forms
     function resetAuthForms() {
-      clearRecaptcha();
+        clearRecaptcha();
+        if(loginForm) loginForm.reset();
+        const loginPhoneSection = document.getElementById('login-phone-section');
+        const loginOtpSection = document.getElementById('login-otp-section');
+        const loginButton = document.getElementById('login-button');
+        if (loginPhoneSection) loginPhoneSection.classList.remove('hidden');
+        if (loginOtpSection) loginOtpSection.classList.add('hidden');
+        if (loginButton) loginButton.textContent = 'Send OTP';
 
-      // Reset Login Form
-      if (loginForm) loginForm.reset();
-      const loginPhoneSection = document.getElementById('login-phone-section');
-      const loginOtpSection = document.getElementById('login-otp-section');
-      const loginButton = document.getElementById('login-button');
-
-      if (loginPhoneSection) loginPhoneSection.classList.remove('hidden');
-      if (loginOtpSection) loginOtpSection.classList.add('hidden');
-      if (loginButton) loginButton.textContent = 'Send OTP';
-
-      // Reset Signup Form
-      if (signupForm) signupForm.reset();
-      const signupDetailsSection = document.getElementById('signup-details-section');
-      const signupOtpSection = document.getElementById('signup-otp-section');
-      const signupButton = document.getElementById('signup-button');
-
-      if (signupDetailsSection) signupDetailsSection.classList.remove('hidden');
-      if (signupOtpSection) signupOtpSection.classList.add('hidden');
-      if (signupButton) signupButton.textContent = 'Send OTP & Sign Up';
+        if(signupForm) signupForm.reset();
+        const signupDetailsSection = document.getElementById('signup-details-section');
+        const signupOtpSection = document.getElementById('signup-otp-section');
+        const signupButton = document.getElementById('signup-button');
+        if (signupDetailsSection) signupDetailsSection.classList.remove('hidden');
+        if (signupOtpSection) signupOtpSection.classList.add('hidden');
+        if (signupButton) signupButton.textContent = 'Send OTP & Sign Up';
     }
 
 
@@ -244,15 +273,32 @@ document.addEventListener('DOMContentLoaded', () => {
       loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const loginButton = document.getElementById('login-button');
+        const phoneNumberInput = document.getElementById('login-phone');
+        const otpInput = document.getElementById('login-otp');
 
+        // Basic Validation
+        // Basic Validation
+        const rawPhoneNumber = phoneNumberInput.value.trim(); // Get raw input
         if (loginButton.textContent.includes('Send')) {
-          // Phase 1: Send OTP
-          clearRecaptcha();
-          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-login', {
-            'size': 'invisible'
-          });
-          const phoneNumber = document.getElementById('login-phone').value;
+            if (!rawPhoneNumber) {
+                alert('Please enter your 10-digit phone number.');
+                return;
+            }
+            if (!/^\d{10}$/.test(rawPhoneNumber)) { // Regex to check for exactly 10 digits
+                alert('Please enter a valid 10-digit phone number.');
+                return;
+            }
+        }
+         if (loginButton.textContent.includes('Verify') && !otpInput.value) {
+            alert('Please enter the OTP.');
+            return;
+        }
 
+        // Proceed with Firebase logic
+        if (loginButton.textContent.includes('Send')) {
+          clearRecaptcha();
+          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-login', { 'size': 'invisible' });
+          const phoneNumber = "+91" + phoneNumberInput.value; // Prepend +91
           auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
             .then(confirmationResult => {
               window.confirmationResult = confirmationResult;
@@ -262,18 +308,13 @@ document.addEventListener('DOMContentLoaded', () => {
               alert('OTP sent successfully!');
             }).catch(error => alert("Sign in failed: " + error.message));
         } else {
-          // Phase 2: Verify OTP
-          const otp = document.getElementById('login-otp').value;
-          if (!otp) {
-            alert("Please enter the OTP.");
-            return;
-          }
+          const otp = otpInput.value;
           window.confirmationResult.confirm(otp).then(result => {
             alert("Successfully signed in!");
             closeModal(authModal);
             resetAuthForms();
           }).catch(error => {
-            alert("Invalid OTP: " + error.message);
+              alert("Invalid OTP: " + error.message);
           });
         }
       });
@@ -284,15 +325,37 @@ document.addEventListener('DOMContentLoaded', () => {
       signupForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const signupButton = document.getElementById('signup-button');
+        const nameInput = document.getElementById('signup-name');
+        const addressInput = document.getElementById('signup-address');
+        const phoneInput = document.getElementById('signup-phone');
+        const otpInput = document.getElementById('signup-otp');
 
+
+        // Basic Validation
+        // Basic Validation
+        const rawPhoneNumberSignUp = phoneInput.value.trim(); // Get raw input
         if (signupButton.textContent.includes('Send')) {
-          // Phase 1: Send OTP
-          clearRecaptcha();
-          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-signup', {
-            'size': 'invisible'
-          });
-          const phoneNumber = document.getElementById('signup-phone').value;
+             if (!nameInput.value || !addressInput.value || !rawPhoneNumberSignUp) {
+                alert('Please fill in all required fields (Name, Address, Phone Number).');
+                return;
+             }
+             if (!/^\d{10}$/.test(rawPhoneNumberSignUp)) { // Regex to check for exactly 10 digits
+                alert('Please enter a valid 10-digit phone number.');
+                return;
+             }
+        } else { // 'Create Account' phase
+             if (!otpInput.value) {
+                alert('Please enter the OTP.');
+                return;
+            }
+        }
 
+
+        // Proceed with Firebase logic
+        if (signupButton.textContent.includes('Send')) {
+          clearRecaptcha();
+          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-signup', { 'size': 'invisible' });
+          const phoneNumber = "+91" + phoneInput.value; // Prepend +91
           auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
             .then(confirmationResult => {
               window.confirmationResult = confirmationResult;
@@ -300,20 +363,19 @@ document.addEventListener('DOMContentLoaded', () => {
               document.getElementById('signup-otp-section').classList.remove('hidden');
               signupButton.textContent = 'Create Account';
               alert('OTP sent successfully!');
-            }).catch(error => alert("Sign up failed: " + error.message));
+            }).catch(error => {
+                alert("Sign up failed: " + error.message);
+                 // Reset form visually if OTP sending fails to allow re-entry
+                 document.getElementById('signup-details-section').classList.remove('hidden');
+                 document.getElementById('signup-otp-section').classList.add('hidden');
+                 signupButton.textContent = 'Send OTP & Sign Up';
+            });
         } else {
-          // Phase 2: Verify OTP and Create Profile
-          const otp = document.getElementById('signup-otp').value;
-          if (!otp) {
-            alert("Please enter the OTP.");
-            return;
-          }
+          const otp = otpInput.value;
           window.confirmationResult.confirm(otp).then(result => {
             const user = result.user;
-            const name = document.getElementById('signup-name').value;
-            const address = document.getElementById('signup-address').value;
-
-            // Save user info to Firestore
+            const name = nameInput.value;
+            const address = addressInput.value;
             return db.collection('users').doc(user.uid).set({
               name: name,
               address: address,
@@ -324,10 +386,90 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Account created successfully!");
             closeModal(authModal);
             resetAuthForms();
-          }).catch(error => alert("Account creation failed: " + error.message));
+          }).catch(error => {
+              alert("Account creation failed: " + error.message);
+               // Reset form visually if OTP verification fails
+               document.getElementById('signup-details-section').classList.remove('hidden'); // Show details again
+               document.getElementById('signup-otp-section').classList.add('hidden');
+               signupButton.textContent = 'Send OTP & Sign Up'; // Reset button text
+          });
         }
       });
     }
+
+    // --- Sell Panel Form Validation & Submission ---
+    if (sellForm) {
+        sellForm.addEventListener('submit', (e) => {
+            e.preventDefault(); // Prevent default form submission
+
+            // Get required fields
+            const purchaseDate = sellForm.querySelector('input[type="date"]');
+            const purchasedFrom = sellForm.querySelector('input[placeholder*="SunPower"]');
+            const panelParams = sellForm.querySelector('input[placeholder*="Brand"]');
+            const panelImage = sellForm.querySelector('input[type="file"][required]'); // Check the required image input
+
+            // Basic Validation
+            if (!purchaseDate.value || !purchasedFrom.value || !panelParams.value || !panelImage.files.length) {
+                alert('Please fill in all required fields and upload an image.');
+                return; // Stop submission
+            }
+
+            // --- If validation passes, proceed (e.g., show success message) ---
+            console.log("Sell form submitted and validated (basic)."); // Placeholder for actual submission logic
+
+            // Hide form, show success message
+            sellForm.classList.add('hidden');
+            document.getElementById('sell-success').classList.remove('hidden');
+
+            // Optional: Reset form after a delay or on close
+            // setTimeout(() => {
+            //    sellForm.reset();
+            //    sellForm.classList.remove('hidden');
+            //    document.getElementById('sell-success').classList.add('hidden');
+            //    closeModal(document.getElementById('sellPanelModal'));
+            // }, 3000);
+        });
+    }
+
+    // --- Buy Request Form Validation & Submission ---
+    if (buyForm) {
+        buyForm.addEventListener('submit', (e) => {
+            e.preventDefault(); // Prevent default form submission
+
+            // Get required fields
+            const wattage = buyForm.querySelector('input[placeholder*="5000 W"]');
+            const budget = buyForm.querySelector('input[placeholder*="2000"]');
+
+            // Basic Validation
+            if (!wattage.value || !budget.value) {
+                alert('Please fill in the required wattage and budget.');
+                return; // Stop submission
+            }
+
+            // --- If validation passes, proceed (e.g., show success message) ---
+            console.log("Buy form submitted and validated (basic)."); // Placeholder
+
+            // Hide form, show appropriate result message (example logic)
+            buyForm.classList.add('hidden');
+            // --- Simulate finding a match or not ---
+            const matchFound = Math.random() > 0.5; // Randomly decide if a match is found
+            if (matchFound) {
+                 document.getElementById('buy-result-found').classList.remove('hidden');
+            } else {
+                 document.getElementById('buy-result-not-found').classList.remove('hidden');
+            }
+
+             // Optional: Reset form after a delay or on close
+            // setTimeout(() => {
+            //    buyForm.reset();
+            //    buyForm.classList.remove('hidden');
+            //    document.getElementById('buy-result-found').classList.add('hidden');
+            //    document.getElementById('buy-result-not-found').classList.add('hidden');
+            //    closeModal(document.getElementById('buyRequestModal'));
+            // }, 3000);
+        });
+    }
+
 
   } catch (error) {
     console.error("Firebase initialization failed:", error);
