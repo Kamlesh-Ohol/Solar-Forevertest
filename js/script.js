@@ -1,12 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
 
   // --- PASTE YOUR FIREBASE CONFIG OBJECT HERE ---
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
   const firebaseConfig = {
     apiKey: "AIzaSyBFazdEmqatvQaFgrEiC7btxohKXbkGOyw",
     authDomain: "solar-forever.firebaseapp.com",
     databaseURL: "https://solar-forever-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "solar-forever",
-    storageBucket: "solar-forever.firebasestorage.app", // Corrected bucket name
+    storageBucket: "solar-forever.firebasestorage.app",
     messagingSenderId: "15804210993",
     appId: "1:15804210993:web:f031750b9651e609b69a10",
     measurementId: "G-T6955CSP1N"
@@ -23,26 +24,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const authModal = document.getElementById('authModal');
     const loginForm = document.getElementById('login-form');
     const signupForm = document.getElementById('signup-form');
-    const sellForm = document.getElementById('sell-form');
-    const buyForm = document.getElementById('buy-form');
+    const sellForm = document.getElementById('sell-form'); // Added for validation
+    const buyForm = document.getElementById('buy-form');   // Added for validation
 
     // =================================================================
     // PART 1: MODAL AND UI LOGIC
     // =================================================================
 
     // --- Modal Helper Functions ---
-// --- Modal Helper Functions ---
+    // --- Modal Helper Functions (UPDATED) ---
 const openModal = (modalId) => {
   const modal = document.getElementById(modalId);
   if (modal) {
+    // Instead of changing display, add the 'active' class
     modal.classList.add('active');
-    document.body.classList.add('modal-open'); // Add class to body
   }
 };
+
 const closeModal = (modal) => {
   if (modal) {
+    // Instead of changing display, remove the 'active' class
     modal.classList.remove('active');
-    document.body.classList.remove('modal-open'); // Remove class from body
   }
 };
     // --- Header "Login / Sign Up" Button (Desktop) ---
@@ -60,19 +62,19 @@ const closeModal = (modal) => {
 
     // --- Event Listener for Mobile Login/Signup Button ---
     const loginSignupBtnMobile = document.getElementById('login-signup-btn-mobile');
-    const mobileMenu = document.getElementById('mobile-menu');
+    const mobileMenu = document.getElementById('mobile-menu'); // Moved mobileMenu definition up
     if (loginSignupBtnMobile) {
       loginSignupBtnMobile.addEventListener('click', () => {
         if (currentUser) {
           auth.signOut();
           if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-             mobileMenu.classList.add('hidden');
+             mobileMenu.classList.add('hidden'); // Close menu on logout
           }
         } else {
           openModal('authModal');
           resetAuthForms();
            if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-             mobileMenu.classList.add('hidden');
+             mobileMenu.classList.add('hidden'); // Close menu when opening login
           }
         }
       });
@@ -90,19 +92,12 @@ const closeModal = (modal) => {
     const viewDetailsBtns = document.querySelectorAll('.view-details-btn');
     viewDetailsBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const productDetailModal = document.getElementById('productDetailModal');
         openModal('productDetailModal');
         const card = e.target.closest('.group');
         const title = card.querySelector('h3').textContent;
         const condition = card.querySelector('.text-gray-600').textContent;
         const price = card.querySelector('.text-blue-700').textContent;
         const imgSrc = card.querySelector('img').src;
-
-        // Store product title in the modal element's dataset for later retrieval
-        if (productDetailModal) {
-            productDetailModal.dataset.productTitle = title || 'Unknown Product';
-        }
-
 
         document.getElementById('modal-product-img').src = imgSrc;
         document.getElementById('modal-product-title').textContent = title;
@@ -116,61 +111,12 @@ const closeModal = (modal) => {
       });
     });
 
-    // --- "Interested?" Button (inside Product Detail Modal) --- Updated Logic ---
+    // --- "Interested?" Button (inside Product Detail Modal) ---
     const interestedBtn = document.getElementById('interested-btn');
     if (interestedBtn) {
       interestedBtn.addEventListener('click', () => {
-        const productDetailModal = document.getElementById('productDetailModal');
-
-        if (currentUser) {
-          // --- User is logged in, proceed to save interest ---
-          const productTitle = productDetailModal ? productDetailModal.dataset.productTitle : 'Unknown Product';
-
-          // Attempt to get user details from 'users' collection (assuming it might still exist from previous logic)
-          // **Important:** Since we removed saving to 'users' in signup, this fetch might fail
-          // if the user signed up *after* that code removal. Handle this gracefully.
-          db.collection('users').doc(currentUser.uid).get()
-            .then(doc => {
-              let userName = 'N/A';
-              let userLocation = 'N/A';
-              if (doc.exists) {
-                userName = doc.data().name || 'N/A';
-                userLocation = doc.data().address || 'N/A';
-              } else {
-                // Handle case where user profile data wasn't saved (or collection doesn't exist)
-                console.warn("User profile data not found in Firestore for UID:", currentUser.uid);
-                // Optionally, prompt user for details here if needed
-              }
-
-              // Save data to 'interestedQueries' collection
-              return db.collection('interestedQueries').add({
-                userId: currentUser.uid,
-                userName: userName,
-                userLocation: userLocation,
-                userPhone: currentUser.phoneNumber,
-                productTitle: productTitle,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-              });
-            })
-            .then(() => {
-              // Successfully saved interest
-              console.log('Interest registered for user:', currentUser.uid, 'for product:', productTitle);
-              closeModal(productDetailModal);
-              openModal('interestedQueryModal'); // Show success modal
-            })
-            .catch(error => {
-              console.error("Error saving interest or fetching user data: ", error);
-              alert("There was an error registering your interest. Please try again.");
-              closeModal(productDetailModal); // Still close product modal on error
-            });
-
-        } else {
-          // --- User is NOT logged in ---
-          closeModal(productDetailModal); // Close the product details
-          alert("Please log in or sign up to express interest."); // Inform the user
-          openModal('authModal'); // Open the login/signup modal
-          resetAuthForms(); // Reset the forms
-        }
+        closeModal(document.getElementById('productDetailModal'));
+        openModal('interestedQueryModal');
       });
     }
 
@@ -197,6 +143,7 @@ const closeModal = (modal) => {
 
     // --- Mobile Menu Button ---
     const mobileMenuBtn = document.getElementById('mobile-menu-button');
+    // mobileMenu already defined above
     if (mobileMenuBtn && mobileMenu) {
       mobileMenuBtn.addEventListener('click', () => {
         mobileMenu.classList.toggle('hidden');
@@ -332,13 +279,14 @@ const closeModal = (modal) => {
         const otpInput = document.getElementById('login-otp');
 
         // Basic Validation
-        const rawPhoneNumber = phoneNumberInput.value.trim();
+        // Basic Validation
+        const rawPhoneNumber = phoneNumberInput.value.trim(); // Get raw input
         if (loginButton.textContent.includes('Send')) {
             if (!rawPhoneNumber) {
                 alert('Please enter your 10-digit phone number.');
                 return;
             }
-            if (!/^\d{10}$/.test(rawPhoneNumber)) {
+            if (!/^\d{10}$/.test(rawPhoneNumber)) { // Regex to check for exactly 10 digits
                 alert('Please enter a valid 10-digit phone number.');
                 return;
             }
@@ -352,7 +300,7 @@ const closeModal = (modal) => {
         if (loginButton.textContent.includes('Send')) {
           clearRecaptcha();
           window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-login', { 'size': 'invisible' });
-          const phoneNumber = "+91" + phoneNumberInput.value; // Correct variable used
+          const phoneNumber = "+91" + phoneNumberInput.value; // Prepend +91
           auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
             .then(confirmationResult => {
               window.confirmationResult = confirmationResult;
@@ -374,7 +322,7 @@ const closeModal = (modal) => {
       });
     }
 
-    // --- Sign-Up Flow --- (Updated: Removed Firestore save, added existing user check)
+    // --- Sign-Up Flow ---
     if (signupForm) {
       signupForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -384,29 +332,32 @@ const closeModal = (modal) => {
         const phoneInput = document.getElementById('signup-phone');
         const otpInput = document.getElementById('signup-otp');
 
+
         // Basic Validation
-        const rawPhoneNumberSignUp = phoneInput.value.trim();
+        // Basic Validation
+        const rawPhoneNumberSignUp = phoneInput.value.trim(); // Get raw input
         if (signupButton.textContent.includes('Send')) {
              if (!nameInput.value || !addressInput.value || !rawPhoneNumberSignUp) {
                 alert('Please fill in all required fields (Name, Address, Phone Number).');
                 return;
              }
-             if (!/^\d{10}$/.test(rawPhoneNumberSignUp)) {
+             if (!/^\d{10}$/.test(rawPhoneNumberSignUp)) { // Regex to check for exactly 10 digits
                 alert('Please enter a valid 10-digit phone number.');
                 return;
              }
-        } else {
+        } else { // 'Create Account' phase
              if (!otpInput.value) {
                 alert('Please enter the OTP.');
                 return;
             }
         }
 
+
         // Proceed with Firebase logic
         if (signupButton.textContent.includes('Send')) {
           clearRecaptcha();
           window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-signup', { 'size': 'invisible' });
-          const phoneNumber = "+91" + phoneInput.value; // Correct variable used
+          const phoneNumber = "+91" + phoneInput.value; // Prepend +91
           auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
             .then(confirmationResult => {
               window.confirmationResult = confirmationResult;
@@ -416,40 +367,34 @@ const closeModal = (modal) => {
               alert('OTP sent successfully!');
             }).catch(error => {
                 alert("Sign up failed: " + error.message);
+                 // Reset form visually if OTP sending fails to allow re-entry
                  document.getElementById('signup-details-section').classList.remove('hidden');
                  document.getElementById('signup-otp-section').classList.add('hidden');
                  signupButton.textContent = 'Send OTP & Sign Up';
             });
         } else {
-          // Phase 2: Verify OTP
           const otp = otpInput.value;
-          window.confirmationResult.confirm(otp)
-            .then(result => {
-                // Check if it's a new user or existing user
-                if (result.additionalUserInfo && !result.additionalUserInfo.isNewUser) {
-                     alert("Account already exists, logging you in.");
-                } else {
-                     alert("Account created successfully!");
-                }
-                // *** REMOVED FIRESTORE SAVE LOGIC HERE ***
-                // const user = result.user;
-                // const name = nameInput.value;
-                // const address = addressInput.value;
-                // return db.collection('users').doc(user.uid).set({ ... });
-
-                // Directly close modal and reset after successful OTP confirmation
-                closeModal(authModal);
-                resetAuthForms();
-            })
-            // .then(() => {  // Removed this .then() as Firestore save is gone
-            //    // This block is no longer needed
-            // })
-            .catch(error => {
-                alert("Account creation/verification failed: " + error.message);
-                document.getElementById('signup-details-section').classList.remove('hidden');
-                document.getElementById('signup-otp-section').classList.add('hidden');
-                signupButton.textContent = 'Send OTP & Sign Up';
+          window.confirmationResult.confirm(otp).then(result => {
+            const user = result.user;
+            const name = nameInput.value;
+            const address = addressInput.value;
+            return db.collection('users').doc(user.uid).set({
+              name: name,
+              address: address,
+              phoneNumber: user.phoneNumber,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+          }).then(() => {
+            alert("Account created successfully!");
+            closeModal(authModal);
+            resetAuthForms();
+          }).catch(error => {
+              alert("Account creation failed: " + error.message);
+               // Reset form visually if OTP verification fails
+               document.getElementById('signup-details-section').classList.remove('hidden'); // Show details again
+               document.getElementById('signup-otp-section').classList.add('hidden');
+               signupButton.textContent = 'Send OTP & Sign Up'; // Reset button text
+          });
         }
       });
     }
@@ -457,41 +402,73 @@ const closeModal = (modal) => {
     // --- Sell Panel Form Validation & Submission ---
     if (sellForm) {
         sellForm.addEventListener('submit', (e) => {
-            e.preventDefault();
+            e.preventDefault(); // Prevent default form submission
+
+            // Get required fields
             const purchaseDate = sellForm.querySelector('input[type="date"]');
             const purchasedFrom = sellForm.querySelector('input[placeholder*="SunPower"]');
             const panelParams = sellForm.querySelector('input[placeholder*="Brand"]');
-            const panelImage = sellForm.querySelector('input[type="file"][required]');
+            const panelImage = sellForm.querySelector('input[type="file"][required]'); // Check the required image input
 
+            // Basic Validation
             if (!purchaseDate.value || !purchasedFrom.value || !panelParams.value || !panelImage.files.length) {
                 alert('Please fill in all required fields and upload an image.');
-                return;
+                return; // Stop submission
             }
-            console.log("Sell form submitted and validated (basic).");
+
+            // --- If validation passes, proceed (e.g., show success message) ---
+            console.log("Sell form submitted and validated (basic)."); // Placeholder for actual submission logic
+
+            // Hide form, show success message
             sellForm.classList.add('hidden');
             document.getElementById('sell-success').classList.remove('hidden');
+
+            // Optional: Reset form after a delay or on close
+            // setTimeout(() => {
+            //    sellForm.reset();
+            //    sellForm.classList.remove('hidden');
+            //    document.getElementById('sell-success').classList.add('hidden');
+            //    closeModal(document.getElementById('sellPanelModal'));
+            // }, 3000);
         });
     }
 
     // --- Buy Request Form Validation & Submission ---
     if (buyForm) {
         buyForm.addEventListener('submit', (e) => {
-            e.preventDefault();
+            e.preventDefault(); // Prevent default form submission
+
+            // Get required fields
             const wattage = buyForm.querySelector('input[placeholder*="5000 W"]');
             const budget = buyForm.querySelector('input[placeholder*="2000"]');
 
+            // Basic Validation
             if (!wattage.value || !budget.value) {
                 alert('Please fill in the required wattage and budget.');
-                return;
+                return; // Stop submission
             }
-            console.log("Buy form submitted and validated (basic).");
+
+            // --- If validation passes, proceed (e.g., show success message) ---
+            console.log("Buy form submitted and validated (basic)."); // Placeholder
+
+            // Hide form, show appropriate result message (example logic)
             buyForm.classList.add('hidden');
-            const matchFound = Math.random() > 0.5;
+            // --- Simulate finding a match or not ---
+            const matchFound = Math.random() > 0.5; // Randomly decide if a match is found
             if (matchFound) {
                  document.getElementById('buy-result-found').classList.remove('hidden');
             } else {
                  document.getElementById('buy-result-not-found').classList.remove('hidden');
             }
+
+             // Optional: Reset form after a delay or on close
+            // setTimeout(() => {
+            //    buyForm.reset();
+            //    buyForm.classList.remove('hidden');
+            //    document.getElementById('buy-result-found').classList.add('hidden');
+            //    document.getElementById('buy-result-not-found').classList.add('hidden');
+            //    closeModal(document.getElementById('buyRequestModal'));
+            // }, 3000);
         });
     }
 
