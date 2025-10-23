@@ -33,21 +33,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Modal Helper Functions ---
     // --- Modal Helper Functions (UPDATED) ---
-const openModal = (modalId) => {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    // Instead of changing display, add the 'active' class
-    modal.classList.add('active');
-  }
-};
+// --- Modal Helper Functions (UPDATED to prevent background scroll) ---
+    const openModal = (modalId) => {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.add('active');
+        document.body.classList.add('modal-open'); // Add class to body
+      }
+    };
 
-const closeModal = (modal) => {
-  if (modal) {
-    // Instead of changing display, remove the 'active' class
-    modal.classList.remove('active');
-  }
-};
-    // --- Header "Login / Sign Up" Button (Desktop) ---
+    const closeModal = (modal) => {
+      if (modal) {
+        modal.classList.remove('active');
+        document.body.classList.remove('modal-open'); // Remove class from body
+      }
+    };    // --- Header "Login / Sign Up" Button (Desktop) ---
     const loginSignupBtnDesktop = document.getElementById('login-signup-btn-desktop');
     if (loginSignupBtnDesktop) {
       loginSignupBtnDesktop.addEventListener('click', () => {
