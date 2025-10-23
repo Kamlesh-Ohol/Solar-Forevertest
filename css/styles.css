@@ -44,9 +44,7 @@ body {
 .nav-link:hover::after {
   width: 100%;
 }
-body.modal-open {
-  overflow: hidden; /* Prevent background scrolling */
-}
+
 /* Modal backdrop and modal content styles */
 .modal-backdrop {
   position: fixed;
