@@ -5,7 +5,16 @@ body {
   background: #f9fafb;
   color: #1e293b;
 }
+body.modal-open {
+  overflow: hidden; /* Prevent background scrolling */
+}
 
+.modal-backdrop.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  display: flex; /* Make sure this is present for centering */
+}
 /* Hero overlay */
 .hero-overlay {
   background-color: rgba(0, 25, 50, 0.7);
