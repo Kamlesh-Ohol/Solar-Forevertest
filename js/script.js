@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authModal = document.getElementById('authModal');
     const loginForm = document.getElementById('login-form');
     const signupForm = document.getElementById('signup-form');
-    const sellForm = document.getElementById('sell-form');
+    const sellForm = document.getElementById('sell-panel-form'); 
     const buyForm = document.getElementById('buy-form');
 
     // =================================================================
@@ -32,6 +32,155 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Modal Helper Functions ---
 // --- Modal Helper Functions (UPDATED to prevent background scroll) ---
+
+// --- (NEW) Helper for setting up image previews ---
+    function setupImagePreview(inputId, previewId) {
+      const input = document.getElementById(inputId);
+      const preview = document.getElementById(previewId);
+      if (input && preview) {
+        input.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            preview.src = URL.createObjectURL(file);
+            preview.classList.remove('hidden');
+          } else {
+            preview.classList.add('hidden');
+          }
+        });
+      }
+    }
+
+    // --- (NEW) Activate Image Previews ---
+    setupImagePreview('sell-panel-image', 'sell-image-preview');
+    setupImagePreview('sell-receipt-image', 'sell-receipt-preview');
+
+
+    // --- (NEW) Image Compression Function ---
+    // Returns a Promise that resolves with a compressed Blob
+    function compressImage(file, quality = 0.5, maxWidth = 1024) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Calculate new dimensions
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Get the compressed blob
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Canvas toBlob failed.'));
+              }
+            },
+            'image/jpeg', // Force JPEG for compression
+            quality       // The compression quality (0.0 - 1.0)
+          );
+        };
+        
+        img.onerror = (error) => {
+          reject(error);
+        };
+      });
+    }
+    // --- (NEW) Helper to Upload a BLOB ---
+    // This is the second half of the old uploadCompressedImage function
+    function uploadBlob(blob, path, progressElement, fileLabel) {
+      // Return a promise that resolves to null if the blob is missing
+      if (!blob) {
+        return Promise.resolve(null);
+      }
+
+      return new Promise((resolve, reject) => {
+        const storage = firebase.storage();
+        const storageRef = storage.ref(path);
+        const uploadTask = storageRef.put(blob);
+
+        uploadTask.on('state_changed',
+          (snapshot) => {
+            // Update progress
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            if (progressElement) {
+              progressElement.textContent = `Uploading ${fileLabel}: ${Math.round(progress)}%`;
+            }
+          },
+          (error) => {
+            console.error(`Upload failed for ${fileLabel}:`, error);
+            reject(error);
+          },
+          () => {
+            // Upload Complete - Get Download URL
+            uploadTask.snapshot.ref.getDownloadURL()
+              .then(downloadURL => {
+                console.log(`${fileLabel} available at`, downloadURL);
+                resolve(downloadURL); // This is the final URL
+              })
+              .catch(reject);
+          }
+        );
+      });
+    }
+
+
+    // --- (NEW) Helper to Compress and Upload a File ---
+    // Returns a Promise that resolves with the Download URL
+    // function uploadCompressedImage(file, quality, path, progressElement, fileLabel) {
+    //   // Return a promise that resolves to null if the file is missing
+    //   if (!file) {
+    //     return Promise.resolve(null);
+    //   }
+
+    //   return new Promise((resolve, reject) => {
+    //     // 1. Compress the image
+    //     compressImage(file, quality)
+    //       .then(blob => {
+    //         // 2. Upload the compressed blob
+    //         const storage = firebase.storage();
+    //         const storageRef = storage.ref(path);
+    //         const uploadTask = storageRef.put(blob);
+
+    //         uploadTask.on('state_changed',
+    //           (snapshot) => {
+    //             // Update progress
+    //             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+    //             if (progressElement) {
+    //                progressElement.textContent = `Uploading ${fileLabel}: ${Math.round(progress)}%`;
+    //             }
+    //           },
+    //           (error) => {
+    //             // Handle Error
+    //             console.error(`Upload failed for ${fileLabel}:`, error);
+    //             reject(error);
+    //           },
+    //           () => {
+    //             // 3. Upload Complete - Get Download URL
+    //             uploadTask.snapshot.ref.getDownloadURL()
+    //               .then(downloadURL => {
+    //                 console.log(`${fileLabel} available at`, downloadURL);
+    //                 resolve(downloadURL); // This is the final URL
+    //               })
+    //               .catch(reject);
+    //           }
+    //         );
+    //       })
+    //       .catch(reject); // Catch errors from compression
+    //   });
+    // }
+
     const openModal = (modalId) => {
       const modal = document.getElementById(modalId);
       if (modal) {
@@ -424,29 +573,53 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           // Phase 2: Verify OTP
           const otp = otpInput.value;
+          // Get the name and address values again
+          const name = document.getElementById('signup-name').value;
+          const address = document.getElementById('signup-address').value;
+
+          // Simple validation
+          if (!name || !address) {
+            alert("An error occurred. Your name and address were missing. Please try signing up again.");
+            resetAuthForms();
+            return;
+          }
+
           window.confirmationResult.confirm(otp)
             .then(result => {
-                // Check if it's a new user or existing user
-                if (result.additionalUserInfo && !result.additionalUserInfo.isNewUser) {
-                     alert("Account already exists, logging you in.");
-                } else {
-                     alert("Account created successfully!");
-                }
-                // *** REMOVED FIRESTORE SAVE LOGIC HERE ***
-                // const user = result.user;
-                // const name = nameInput.value;
-                // const address = addressInput.value;
-                // return db.collection('users').doc(user.uid).set({ ... });
+                const user = result.user;
 
-                // Directly close modal and reset after successful OTP confirmation
-                closeModal(authModal);
-                resetAuthForms();
+                // --- THIS IS THE KEY CHANGE ---
+                // We will *always* save/update the user's details.
+                // .set() with { merge: true } is perfect for this:
+                // 1. If the user doc doesn't exist, it creates it.
+                // 2. If it *does* exist, it just updates the name/address fields.
+                const savePromise = db.collection('users').doc(user.uid).set({
+                    name: name,
+                    address: address,
+                    phone: user.phoneNumber,
+                    // This will update the timestamp on each "Sign Up"
+                    // but it ensures the data is fresh.
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp() 
+                }, { merge: true }); // { merge: true } is crucial
+
+                // Pass the original 'result' object to the next .then()
+                return savePromise.then(() => result);
             })
-            // .then(() => {  // Removed this .then() as Firestore save is gone
-            //    // This block is no longer needed
-            // })
+            .then((result) => {
+               // Now we check if it was a new user *just for the alert message*
+               if (result.additionalUserInfo && !result.additionalUserInfo.isNewUser) {
+                   alert("Account details updated! Logging you in.");
+               } else {
+                   alert("Account created successfully!");
+               }
+               
+               // Close and reset the form
+               closeModal(authModal);
+               resetAuthForms();
+            })
             .catch(error => {
                 alert("Account creation/verification failed: " + error.message);
+                // Show the details section again on error
                 document.getElementById('signup-details-section').classList.remove('hidden');
                 document.getElementById('signup-otp-section').classList.add('hidden');
                 signupButton.textContent = 'Send OTP & Sign Up';
@@ -454,46 +627,237 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }
-
     // --- Sell Panel Form Validation & Submission ---
+    // --- Sell Panel Form Validation & Submission --- (UPDATED for 2 IMAGES + COMPRESSION)
+    // --- Sell Panel Form Validation & Submission --- (UPDATED for better UI feedback)
     if (sellForm) {
+        // --- This function will reset your form after success ---
+        window.resetSellForm = () => {
+            sellForm.reset();
+            document.getElementById('sell-image-preview').classList.add('hidden');
+            document.getElementById('sell-receipt-preview').classList.add('hidden'); // Also hide receipt preview
+            document.getElementById('sell-success').classList.add('hidden');
+            sellForm.classList.remove('hidden');
+            const submitButton = document.getElementById('sell-submit-button');
+            submitButton.disabled = false;
+            submitButton.textContent = 'Submit for Review';
+        }
+
         sellForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const purchaseDate = sellForm.querySelector('input[type="date"]');
-            const purchasedFrom = sellForm.querySelector('input[placeholder*="SunPower"]');
-            const panelParams = sellForm.querySelector('input[placeholder*="Brand"]');
-            const panelImage = sellForm.querySelector('input[type="file"][required]');
 
-            if (!purchaseDate.value || !purchasedFrom.value || !panelParams.value || !panelImage.files.length) {
-                alert('Please fill in all required fields and upload an image.');
+            // 1. Get form elements and values
+            const purchaseDateInput = document.getElementById('sell-purchase-date');
+            const purchasedFromInput = document.getElementById('sell-purchased-from');
+            const panelParamsInput = document.getElementById('sell-panel-params');
+            const panelImageInput = document.getElementById('sell-panel-image');
+            const receiptImageInput = document.getElementById('sell-receipt-image');
+            const submitButton = document.getElementById('sell-submit-button');
+            const progressText = document.getElementById('upload-progress');
+            
+            const panelFile = panelImageInput.files[0];
+            const receiptFile = receiptImageInput.files[0];
+
+            // 2. Validation
+            if (!purchaseDateInput.value || !purchasedFromInput.value || !panelParamsInput.value || !panelFile) {
+                alert('Please fill in all required fields and upload a panel image.');
                 return;
             }
-            console.log("Sell form submitted and validated (basic).");
-            sellForm.classList.add('hidden');
-            document.getElementById('sell-success').classList.remove('hidden');
+            
+            // 3. Check for logged-in user
+            if (!currentUser) {
+                alert("You must be logged in to sell a panel.");
+                closeModal(document.getElementById('sellPanelModal'));
+                openModal('authModal');
+                return;
+            }
+
+            // 4. Disable button and show progress
+            submitButton.disabled = true;
+            submitButton.textContent = 'Compressing...';
+            progressText.classList.remove('hidden');
+            progressText.textContent = 'Compressing images...';
+
+            // 5. Define compression settings
+            const compressionQuality = 0.7; 
+            const compressionMaxWidth = 800; // Smaller max width for faster compression
+            
+            // 6. Create compression promises
+            const panelCompressPromise = compressImage(panelFile, compressionQuality, compressionMaxWidth);
+            const receiptCompressPromise = receiptFile ? compressImage(receiptFile, compressionQuality, compressionMaxWidth) : Promise.resolve(null);
+
+            // 7. Wait for compression to finish
+            Promise.all([panelCompressPromise, receiptCompressPromise])
+                .then(([panelBlob, receiptBlob]) => {
+                    
+                    // --- COMPRESSION IS DONE ---
+                    submitButton.textContent = 'Uploading...'; // <-- ⭐️ UPDATE BUTTON TEXT
+                    progressText.textContent = 'Upload started...';
+
+                    // 8. Create upload promises
+                    const panelPath = `sell-images/${currentUser.uid}/${Date.now()}-panel-${panelFile.name}`;
+                    const receiptPath = receiptFile ? `sell-images/${currentUser.uid}/${Date.now()}-receipt-${receiptFile.name}` : null;
+
+                    const panelUploadPromise = uploadBlob(panelBlob, panelPath, progressText, 'Panel');
+                    const receiptUploadPromise = uploadBlob(receiptBlob, receiptPath, progressText, 'Receipt');
+
+                    // 9. Wait for uploads to finish
+                    return Promise.all([panelUploadPromise, receiptUploadPromise]);
+                })
+                .then(([panelImageURL, receiptImageURL]) => {
+                    // 10. Save data to Firestore
+                    submitButton.textContent = 'Saving Details...';
+                    return db.collection('sellQueries').add({
+                        sellerId: currentUser.uid,
+                        sellerPhone: currentUser.phoneNumber,
+                        purchaseDate: purchaseDateInput.value,
+                        purchasedFrom: purchasedFromInput.value,
+                        panelParams: panelParamsInput.value,
+                        panelImageURL: panelImageURL, // <-- Save the compressed panel image URL
+                        receiptImageURL: receiptImageURL || null, // <-- Save the receipt URL (or null)
+                        status: 'pending_review',
+                        submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                })
+                .then(() => {
+                    // 11. SUCCESS: Show success message
+                    console.log("Sell query successfully submitted with images!");
+                    sellForm.classList.add('hidden');
+                    progressText.classList.add('hidden');
+                    document.getElementById('sell-success').classList.remove('hidden');
+                })
+                .catch((error) => {
+                    // 12. ERROR: Handle all errors
+                    console.error("Submission failed: ", error);
+                    alert("There was an error during submission. Check the console (F12) for details.");
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Submit for Review';
+                    progressText.classList.add('hidden');
+                });
         });
     }
 
     // --- Buy Request Form Validation & Submission ---
+    // --- Buy Request Form Validation & Submission --- (UPDATED WITH FIREBASE)
     if (buyForm) {
         buyForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const wattage = buyForm.querySelector('input[placeholder*="5000 W"]');
-            const budget = buyForm.querySelector('input[placeholder*="2000"]');
+            
+            // Get form elements
+            const wattageInput = buyForm.querySelector('input[placeholder*="5000 W"]');
+            const budgetInput = buyForm.querySelector('input[placeholder*="2000"]');
+            const preferenceInput = buyForm.querySelector('input[placeholder*="Canadian Solar"]');
+            const submitButton = buyForm.querySelector('button[type="submit"]');
 
-            if (!wattage.value || !budget.value) {
+            // Get form values
+            const wattage = wattageInput.value;
+            const budget = budgetInput.value;
+            const preference = preferenceInput.value || 'N/A'; // Use 'N/A' if empty
+
+            // 1. Validation
+            if (!wattage || !budget) {
                 alert('Please fill in the required wattage and budget.');
                 return;
             }
-            console.log("Buy form submitted and validated (basic).");
-            buyForm.classList.add('hidden');
-            const matchFound = Math.random() > 0.5;
-            if (matchFound) {
-                 document.getElementById('buy-result-found').classList.remove('hidden');
-            } else {
-                 document.getElementById('buy-result-not-found').classList.remove('hidden');
+
+            // 2. Check for logged-in user (should be available in `currentUser`)
+            if (!currentUser) {
+                alert("You must be logged in to submit a request.");
+                closeModal(document.getElementById('buyRequestModal'));
+                openModal('authModal');
+                return;
             }
+            
+            // 3. Disable button to prevent double clicks
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+
+            // 4. Add data to Firestore
+            db.collection('buyQueries').add({
+                buyerId: currentUser.uid,
+                buyerPhone: currentUser.phoneNumber,
+                requiredWattage: Number(wattage), // Save as a number
+                budget: Number(budget),           // Save as a number
+                preference: preference,
+                status: 'pending_review',
+                submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then(() => {
+                // 5. SUCCESS: Show success message
+                console.log("Buy query successfully submitted to Firestore.");
+                buyForm.classList.add('hidden');
+                
+                // You can pick which message to show, or keep your random logic.
+                // I'll just show the 'found' one for this example.
+                document.getElementById('buy-result-found').classList.remove('hidden');
+                
+                // 6. Reset form for next time
+                buyForm.reset();
+                submitButton.disabled = false;
+                submitButton.textContent = 'Find a Match';
+            })
+            .catch((error) => {
+                // 7. ERROR: Show error and re-enable button
+                console.error("Error adding buy query: ", error);
+                alert("There was an error submitting your request. Please try again.");
+                submitButton.disabled = false;
+                submitButton.textContent = 'Find a Match';
+            });
         });
+
+        // --- (NEW) Load Main Marketplace ---
+async function loadMainMarketplace() {
+  const grid = document.getElementById('marketplace-grid');
+  if (!grid) return;
+
+  grid.innerHTML = '<p class="col-span-4 text-center">Loading available panels...</p>';
+
+  try {
+    const querySnapshot = await db.collection('sellQueries')
+                                  .where('status', '==', 'approved')
+                                  .orderBy('submittedAt', 'desc')
+                                  .get();
+
+    if (querySnapshot.empty) {
+      grid.innerHTML = '<p class="col-span-4 text-center">No panels are available right now. Check back soon!</p>';
+      return;
+    }
+
+    let html = '';
+    querySnapshot.forEach((doc) => {
+      const item = doc.data();
+      const docId = doc.id; // We'll need this for the "View Details" button
+
+      // Note: You'll need to add 'price' and 'condition' to your sell form
+      // to make these cards truly dynamic.
+
+      html += `
+        <div class="bg-white rounded-lg overflow-hidden shadow-lg group border">
+          <img src="${item.panelImageURL}" class="w-full h-48 object-cover" alt="Solar Panel">
+          <div class="p-4">
+            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Expert Verified</span>
+            <h3 class="font-bold mt-2 text-lg text-gray-800" style="width:250px;height:56px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+              ${item.panelParams}
+            </h3>
+            <p class="text-gray-600 text-sm">Condition: (Add field to form)</p>
+            <p class="text-blue-700 font-bold text-xl mt-2">$ (Add Price)</p>
+            <button class="view-details-btn w-full mt-4 bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors" data-doc-id="${docId}">
+              View Details
+            </button>
+          </div>
+        </div>
+      `;
+    });
+    grid.innerHTML = html;
+
+  } catch (error) {
+    console.error("Error loading marketplace: ", error);
+    grid.innerHTML = '<p class="col-span-4 text-center text-red-500">Could not load panels. Please try again later.</p>';
+  }
+}
+
+// --- Call the new function ---
+loadMainMarketplace();
     }
 
 
