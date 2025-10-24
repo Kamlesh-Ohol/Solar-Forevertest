@@ -236,91 +236,106 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // --- "View Details" Buttons in Marketplace ---
-    const viewDetailsBtns = document.querySelectorAll('.view-details-btn');
-    viewDetailsBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const productDetailModal = document.getElementById('productDetailModal');
-        openModal('productDetailModal');
-        const card = e.target.closest('.group');
-        const title = card.querySelector('h3').textContent;
-        const condition = card.querySelector('.text-gray-600').textContent;
-        const price = card.querySelector('.text-blue-700').textContent;
-        const imgSrc = card.querySelector('img').src;
+    // --- "View Details" Buttons (Dynamic Click Listener) ---
+    const marketplaceGrid = document.getElementById('marketplace-grid');
+    if (marketplaceGrid) {
+      marketplaceGrid.addEventListener('click', async (e) => {
+        // Check if the clicked element is a .view-details-btn
+        if (e.target.matches('.view-details-btn')) {
+          const docId = e.target.dataset.docId;
+          if (!docId) return;
 
-        // Store product title in the modal element's dataset for later retrieval
-        if (productDetailModal) {
-            productDetailModal.dataset.productTitle = title || 'Unknown Product';
+          const productDetailModal = document.getElementById('productDetailModal');
+          const modalTitle = document.getElementById('modal-product-title');
+          const modalImg = document.getElementById('modal-product-img');
+          const modalCondition = document.getElementById('modal-product-condition');
+          const modalPrice = document.getElementById('modal-product-price');
+          const modalWattage = document.getElementById('modal-product-wattage');
+          const modalAge = document.getElementById('modal-product-age');
+
+          // Show loading state
+          modalTitle.textContent = 'Loading...';
+          modalImg.src = '';
+          
+          openModal('productDetailModal');
+
+          try {
+            // Fetch the item's details from Firestore
+            const doc = await db.collection('sellQueries').doc(docId).get();
+            if (!doc.exists) {
+              modalTitle.textContent = 'Error: Item not found.';
+              return;
+            }
+            
+            const item = doc.data();
+
+            // --- Populate the modal ---
+            // Store product title for the "Interested?" button
+            productDetailModal.dataset.productTitle = item.panelParams;
+
+            modalTitle.textContent = item.panelParams;
+            modalImg.src = item.panelImageURL;
+            modalPrice.textContent = `$${item.price}`;
+            
+            // Try to extract extra details
+            try {
+                // (You still need to add 'condition' to your form)
+                modalCondition.textContent = 'Condition: (Add field to form)'; 
+                modalWattage.textContent = item.panelParams.split('W')[0] + 'W';
+                // Calculate age
+                const purchaseYear = new Date(item.purchaseDate).getFullYear();
+                const currentYear = new Date().getFullYear();
+                const age = currentYear - purchaseYear;
+                modalAge.textContent = (age <= 0) ? 'Less than 1 year old' : `${age} years old`;
+            } catch (err) { /* ignore parsing errors */ }
+            
+            document.getElementById('modal-product-status').textContent = "Expert Verified";
+
+          } catch (error) {
+            console.error("Error fetching item details:", error);
+            modalTitle.textContent = 'Error loading details.';
+          }
         }
-
-
-        document.getElementById('modal-product-img').src = imgSrc;
-        document.getElementById('modal-product-title').textContent = title;
-        document.getElementById('modal-product-condition').textContent = condition;
-        document.getElementById('modal-product-price').textContent = price;
-        try {
-          document.getElementById('modal-product-wattage').textContent = title.split('W')[0] + 'W';
-          document.getElementById('modal-product-age').textContent = condition.match(/\(([^)]+)\)/)[1];
-        } catch (err) { /* ignore */ }
-        document.getElementById('modal-product-status').textContent = "Expert Verified";
       });
-    });
+    }
 
-    // --- "Interested?" Button (inside Product Detail Modal) --- Updated Logic ---
+    // --- "Interested?" Button (UPDATED with Profile Check) ---
     const interestedBtn = document.getElementById('interested-btn');
     if (interestedBtn) {
       interestedBtn.addEventListener('click', () => {
         const productDetailModal = document.getElementById('productDetailModal');
+        const productTitle = productDetailModal ? productDetailModal.dataset.productTitle : 'Unknown Product';
 
-        if (currentUser) {
-          // --- User is logged in, proceed to save interest ---
-          const productTitle = productDetailModal ? productDetailModal.dataset.productTitle : 'Unknown Product';
+        // Use the new profile check function
+        checkUserProfile(async () => {
+          // This code only runs if the user is logged in AND has a profile
+          try {
+            // We know the doc exists, so we can get it
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userName = userDoc.data().name;
+            const userLocation = userDoc.data().address;
 
-          // Attempt to get user details from 'users' collection (assuming it might still exist from previous logic)
-          // **Important:** Since we removed saving to 'users' in signup, this fetch might fail
-          // if the user signed up *after* that code removal. Handle this gracefully.
-          db.collection('users').doc(currentUser.uid).get()
-            .then(doc => {
-              let userName = 'N/A';
-              let userLocation = 'N/A';
-              if (doc.exists) {
-                userName = doc.data().name || 'N/A';
-                userLocation = doc.data().address || 'N/A';
-              } else {
-                // Handle case where user profile data wasn't saved (or collection doesn't exist)
-                console.warn("User profile data not found in Firestore for UID:", currentUser.uid);
-                // Optionally, prompt user for details here if needed
-              }
-
-              // Save data to 'interestedQueries' collection
-              return db.collection('interestedQueries').add({
-                userId: currentUser.uid,
-                userName: userName,
-                userLocation: userLocation,
-                userPhone: currentUser.phoneNumber,
-                productTitle: productTitle,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-              });
-            })
-            .then(() => {
-              // Successfully saved interest
-              console.log('Interest registered for user:', currentUser.uid, 'for product:', productTitle);
-              closeModal(productDetailModal);
-              openModal('interestedQueryModal'); // Show success modal
-            })
-            .catch(error => {
-              console.error("Error saving interest or fetching user data: ", error);
-              alert("There was an error registering your interest. Please try again.");
-              closeModal(productDetailModal); // Still close product modal on error
+            // Save data to 'interestedQueries' collection
+            await db.collection('interestedQueries').add({
+              userId: currentUser.uid,
+              userName: userName,
+              userLocation: userLocation,
+              userPhone: currentUser.phoneNumber,
+              productTitle: productTitle,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
+            
+            // Successfully saved interest
+            console.log('Interest registered for user:', currentUser.uid);
+            closeModal(productDetailModal);
+            openModal('interestedQueryModal'); // Show success modal
 
-        } else {
-          // --- User is NOT logged in ---
-          closeModal(productDetailModal); // Close the product details
-          alert("Please log in or sign up to express interest."); // Inform the user
-          openModal('authModal'); // Open the login/signup modal
-          resetAuthForms(); // Reset the forms
-        }
+          } catch (error) {
+            console.error("Error saving interest: ", error);
+            alert("There was an error registering your interest. Please try again.");
+            closeModal(productDetailModal);
+          }
+        });
       });
     }
 
@@ -630,12 +645,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Sell Panel Form Validation & Submission ---
     // --- Sell Panel Form Validation & Submission --- (UPDATED for 2 IMAGES + COMPRESSION)
     // --- Sell Panel Form Validation & Submission --- (UPDATED for better UI feedback)
+    // --- Sell Panel Form Validation & Submission --- (UPDATED for Price)
     if (sellForm) {
         // --- This function will reset your form after success ---
         window.resetSellForm = () => {
             sellForm.reset();
             document.getElementById('sell-image-preview').classList.add('hidden');
-            document.getElementById('sell-receipt-preview').classList.add('hidden'); // Also hide receipt preview
+            document.getElementById('sell-receipt-preview').classList.add('hidden'); 
             document.getElementById('sell-success').classList.add('hidden');
             sellForm.classList.remove('hidden');
             const submitButton = document.getElementById('sell-submit-button');
@@ -650,6 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const purchaseDateInput = document.getElementById('sell-purchase-date');
             const purchasedFromInput = document.getElementById('sell-purchased-from');
             const panelParamsInput = document.getElementById('sell-panel-params');
+            const priceInput = document.getElementById('sell-price'); // <-- ADDED
             const panelImageInput = document.getElementById('sell-panel-image');
             const receiptImageInput = document.getElementById('sell-receipt-image');
             const submitButton = document.getElementById('sell-submit-button');
@@ -657,10 +674,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const panelFile = panelImageInput.files[0];
             const receiptFile = receiptImageInput.files[0];
+            const price = priceInput.value; // <-- ADDED
 
             // 2. Validation
-            if (!purchaseDateInput.value || !purchasedFromInput.value || !panelParamsInput.value || !panelFile) {
-                alert('Please fill in all required fields and upload a panel image.');
+            if (!purchaseDateInput.value || !purchasedFromInput.value || !panelParamsInput.value || !price || !panelFile) { // <-- ADDED !price
+                alert('Please fill in all required fields, including price and panel image.');
                 return;
             }
             
@@ -680,7 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 5. Define compression settings
             const compressionQuality = 0.7; 
-            const compressionMaxWidth = 800; // Smaller max width for faster compression
+            const compressionMaxWidth = 800;
             
             // 6. Create compression promises
             const panelCompressPromise = compressImage(panelFile, compressionQuality, compressionMaxWidth);
@@ -690,8 +708,7 @@ document.addEventListener('DOMContentLoaded', () => {
             Promise.all([panelCompressPromise, receiptCompressPromise])
                 .then(([panelBlob, receiptBlob]) => {
                     
-                    // --- COMPRESSION IS DONE ---
-                    submitButton.textContent = 'Uploading...'; // <-- ⭐️ UPDATE BUTTON TEXT
+                    submitButton.textContent = 'Uploading...';
                     progressText.textContent = 'Upload started...';
 
                     // 8. Create upload promises
@@ -713,8 +730,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         purchaseDate: purchaseDateInput.value,
                         purchasedFrom: purchasedFromInput.value,
                         panelParams: panelParamsInput.value,
-                        panelImageURL: panelImageURL, // <-- Save the compressed panel image URL
-                        receiptImageURL: receiptImageURL || null, // <-- Save the receipt URL (or null)
+                        price: Number(price), // <-- ADDED
+                        panelImageURL: panelImageURL, 
+                        receiptImageURL: receiptImageURL || null, 
                         status: 'pending_review',
                         submittedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
@@ -806,55 +824,53 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // --- (NEW) Load Main Marketplace ---
-async function loadMainMarketplace() {
-  const grid = document.getElementById('marketplace-grid');
-  if (!grid) return;
+// --- (NEW) Load Main Marketplace ---
+    async function loadMainMarketplace() {
+      const grid = document.getElementById('marketplace-grid');
+      if (!grid) return;
 
-  grid.innerHTML = '<p class="col-span-4 text-center">Loading available panels...</p>';
+      grid.innerHTML = '<p class="col-span-4 text-center">Loading available panels...</p>';
 
-  try {
-    const querySnapshot = await db.collection('sellQueries')
-                                  .where('status', '==', 'approved')
-                                  .orderBy('submittedAt', 'desc')
-                                  .get();
+      try {
+        const querySnapshot = await db.collection('sellQueries')
+                                      .where('status', '==', 'approved')
+                                      .orderBy('submittedAt', 'desc')
+                                      .get();
+        
+        if (querySnapshot.empty) {
+          grid.innerHTML = '<p class="col-span-4 text-center">No panels are available right now. Check back soon!</p>';
+          return;
+        }
 
-    if (querySnapshot.empty) {
-      grid.innerHTML = '<p class="col-span-4 text-center">No panels are available right now. Check back soon!</p>';
-      return;
+        let html = '';
+        querySnapshot.forEach((doc) => {
+          const item = doc.data();
+          const docId = doc.id; // We'll need this for the "View Details" button
+
+          html += `
+            <div class="bg-white rounded-lg overflow-hidden shadow-lg group border">
+              <img src="${item.panelImageURL}" class="w-full h-48 object-cover" alt="Solar Panel">
+              <div class="p-4">
+                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Expert Verified</span>
+                <h3 class="font-bold mt-2 text-lg text-gray-800" style="width:250px;height:56px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                  ${item.panelParams}
+                </h3>
+                <p class="text-gray-600 text-sm">Condition: (Add field to form)</p>
+                <p class="text-blue-700 font-bold text-xl mt-2">$${item.price}</p>
+                <button class="view-details-btn w-full mt-4 bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors" data-doc-id="${docId}">
+                  View Details
+                </button>
+              </div>
+            </div>
+          `;
+        });
+        grid.innerHTML = html;
+
+      } catch (error) {
+        console.error("Error loading marketplace: ", error);
+        grid.innerHTML = '<p class="col-span-4 text-center text-red-500">Could not load panels. Please try again later.</p>';
+      }
     }
-
-    let html = '';
-    querySnapshot.forEach((doc) => {
-      const item = doc.data();
-      const docId = doc.id; // We'll need this for the "View Details" button
-
-      // Note: You'll need to add 'price' and 'condition' to your sell form
-      // to make these cards truly dynamic.
-
-      html += `
-        <div class="bg-white rounded-lg overflow-hidden shadow-lg group border">
-          <img src="${item.panelImageURL}" class="w-full h-48 object-cover" alt="Solar Panel">
-          <div class="p-4">
-            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Expert Verified</span>
-            <h3 class="font-bold mt-2 text-lg text-gray-800" style="width:250px;height:56px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
-              ${item.panelParams}
-            </h3>
-            <p class="text-gray-600 text-sm">Condition: (Add field to form)</p>
-            <p class="text-blue-700 font-bold text-xl mt-2">$ (Add Price)</p>
-            <button class="view-details-btn w-full mt-4 bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors" data-doc-id="${docId}">
-              View Details
-            </button>
-          </div>
-        </div>
-      `;
-    });
-    grid.innerHTML = html;
-
-  } catch (error) {
-    console.error("Error loading marketplace: ", error);
-    grid.innerHTML = '<p class="col-span-4 text-center text-red-500">Could not load panels. Please try again later.</p>';
-  }
-}
 
 // --- Call the new function ---
 loadMainMarketplace();

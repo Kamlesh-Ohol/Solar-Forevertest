@@ -293,13 +293,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // =================================================================
   // 3. HANDLE MODAL CLICKS (To show the images)
   // =================================================================
+  // =================================================================
+  // 3. HANDLE MODAL CLICKS (To show the images)
+  // =================================================================
 
-  // Use one modal for all seller queries. First, add the content areas to your HTML
-  // In adminindex.html, find modal "sellerQueryModal1" and add IDs to the content areas.
-  // For this example, I'll create the *entire* modal content from JS.
-  // We will listen for clicks on the *whole dashboard*
-  
+  // --- LISTENER 1: Opening the modal (clicks INSIDE the dashboard) ---
   dashboardSection.addEventListener('click', async (e) => {
+    
     // Check if a "View Details" button was clicked
     if (e.target.matches('.view-details-btn') && e.target.dataset.modalTarget === 'sellerQueryModal') {
       const docId = e.target.dataset.docId;
@@ -384,7 +384,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Handle closing the modal
+    // You can add the marketplace button logic here too
+    if (e.target.matches('.view-marketplace-item-btn')) {
+        // TODO: Add logic for opening the marketplace item modal
+        console.log("Marketplace item clicked. Doc ID:", e.target.dataset.docId);
+    }
+  });
+
+
+  // --- LISTENER 2: Modal Actions (clicks ANYWHERE on the page) ---
+  document.addEventListener('click', async (e) => {
+    
+    // --- Handle closing the modal (with the 'x' button) ---
     if (e.target.matches('[data-modal-close]')) {
       const modalId = e.target.dataset.modalClose;
       const modal = document.getElementById(modalId);
@@ -395,36 +406,98 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Handle Approval/Disapproval ---
     if (e.target.matches('.action-btn')) {
-      const action = e.target.dataset.action;
-      const docId = e.target.dataset.docId;
-      if (!action || !docId) return;
-
-      const newStatus = (action === 'approve') ? 'approved' : 'rejected';
-      
-      e.target.disabled = true;
-      e.target.textContent = 'Updating...';
-
-      try {
-        await db.collection('sellQueries').doc(docId).update({
-          status: newStatus
-        });
+        const button = e.target;
+        const action = button.dataset.action;
+        const docId = button.dataset.docId; // Get docId from the button
         
-        alert(`Listing ${newStatus} successfully!`);
-        
-        // Close the modal and reload the list
-        const modal = e.target.closest('.modal');
-        if (modal) modal.classList.add('hidden');
-        
-        loadPendingVerifications(); // Reload the list
-        // You should also reload the marketplace list here
-        // loadMarketplaceItems(); 
+        if (!action || !docId) {
+            console.error("Action button missing action or docId");
+            return;
+        }
 
-      } catch (error) {
-        console.error("Error updating status: ", error);
-        alert(`Failed to update status: ${error.message}`);
-        e.target.disabled = false;
-        e.target.textContent = action === 'approve' ? 'Approve Listing' : 'Disapprove Listing';
-      }
+        const newStatus = (action === 'approve') ? 'approved' : (action === 'disapprove') ? 'rejected' : null;
+
+        if (!newStatus) {
+            console.error("Unknown action:", action);
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = 'Updating...';
+
+        try {
+            await db.collection('sellQueries').doc(docId).update({
+                status: newStatus
+            });
+            
+            alert(`Listing ${newStatus} successfully!`);
+            
+            // Close the modal
+            const modal = button.closest('.modal');
+            if (modal) modal.classList.add('hidden');
+            
+            // Reload both lists
+            loadPendingVerifications(); 
+            loadMarketplaceItems(); 
+
+        } catch (error) {
+            console.error("Error updating status: ", error);
+            alert(`Failed to update status: ${error.message}`);
+            
+            // Re-enable the button on error
+            button.disabled = false;
+            button.textContent = (action === 'approve') ? 'Approve Listing' : 'Disapprove Listing';
+        }
+    }
+
+    // --- Handle closing modal by clicking backdrop ---
+    if (e.target.matches('.modal')) {
+        e.target.classList.add('hidden');
+    }
+    // --- Handle Approval/Disapproval ---
+    if (e.target.matches('.action-btn')) {
+        const button = e.target;
+        const action = button.dataset.action;
+        const docId = button.dataset.docId; // Get docId from the button
+
+        if (!action || !docId) {
+            console.error("Action button missing action or docId");
+            return;
+        }
+
+        const newStatus = (action === 'approve') ? 'approved' : (action === 'disapprove') ? 'rejected' : null;
+
+        if (!newStatus) {
+            console.error("Unknown action:", action);
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = 'Updating...';
+
+        try {
+            await db.collection('sellQueries').doc(docId).update({
+                status: newStatus
+            });
+
+            alert(`Listing ${newStatus} successfully!`);
+
+            // Close the modal
+            const modal = button.closest('.modal');
+            if (modal) modal.classList.add('hidden');
+
+            // Reload both lists
+            loadPendingVerifications(); 
+            loadMarketplaceItems(); 
+
+        } catch (error) {
+            console.error("Error updating status: ", error);
+            alert(`Failed to update status: ${error.message}`);
+
+            // Re-enable the button on error
+            button.disabled = false;
+            button.textContent = (action === 'approve') ? 'Approve Listing' : 'Disapprove Listing';
+        }
     }
   });
 
@@ -437,57 +510,52 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. Build HTML and add it to the '#buyer-queries tbody'
   }
   
-  async function loadMarketplaceItems() {
-  const container = document.getElementById('marketplace-management');
-  if (!container) return;
+ // --- (NEW) Load Main Marketplace ---
+    async function loadMainMarketplace() {
+      const grid = document.getElementById('marketplace-grid');
+      if (!grid) return;
 
-  const grid = container.querySelector('.grid');
-  if (!grid) return;
+      grid.innerHTML = '<p class="col-span-4 text-center">Loading available panels...</p>';
 
-  grid.innerHTML = '<p class="col-span-4 text-center">Loading marketplace items...</p>';
+      try {
+        const querySnapshot = await db.collection('sellQueries')
+                                      .where('status', '==', 'approved')
+                                      .orderBy('submittedAt', 'desc')
+                                      .get();
+        
+        if (querySnapshot.empty) {
+          grid.innerHTML = '<p class="col-span-4 text-center">No panels are available right now. Check back soon!</p>';
+          return;
+        }
 
-  try {
-    const querySnapshot = await db.collection('sellQueries')
-                                  .where('status', '==', 'approved')
-                                  .orderBy('submittedAt', 'desc')
-                                  .get();
+        let html = '';
+        querySnapshot.forEach((doc) => {
+          const item = doc.data();
+          const docId = doc.id; // We'll need this for the "View Details" button
 
-    if (querySnapshot.empty) {
-      grid.innerHTML = '<p class="col-span-4 text-center">No items are currently live in the marketplace.</p>';
-      return;
-    }
-
-    let html = '';
-    for (const doc of querySnapshot.docs) {
-      const item = doc.data();
-
-      // You need to fetch seller data if you want to show their name, 
-      // but for the marketplace, you might just need the panel data.
-
-      html += `
-        <div class="bg-white rounded-lg overflow-hidden shadow-md border flex flex-col">
-          <img src="${item.panelImageURL}" class="w-full h-48 object-cover" alt="Solar Panel">
-          <div class="p-4 flex-1 flex flex-col">
-            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Expert Verified</span>
-            <h3 class="font-bold mt-2 text-lg text-gray-800">${item.panelParams}</h3>
-            <p class="text-gray-600 text-sm">Purchase Date: ${item.purchaseDate}</p>
-            <p class="text-blue-700 font-bold text-xl mt-2">$ TBD</p> 
-            <div class="mt-4 flex-1 flex items-end">
-              <button data-modal-target="marketplacePanelModal" data-doc-id="${doc.id}"
-                class="view-marketplace-item-btn w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                View Details
-              </button>
+          html += `
+            <div class="bg-white rounded-lg overflow-hidden shadow-lg group border">
+              <img src="${item.panelImageURL}" class="w-full h-48 object-cover" alt="Solar Panel">
+              <div class="p-4">
+                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Expert Verified</span>
+                <h3 class="font-bold mt-2 text-lg text-gray-800" style="width:250px;height:56px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                  ${item.panelParams}
+                </h3>
+                <p class="text-gray-600 text-sm">Condition: (Add field to form)</p>
+                <p class="text-blue-700 font-bold text-xl mt-2">$${item.price}</p>
+                <button class="view-details-btn w-full mt-4 bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors" data-doc-id="${docId}">
+                  View Details
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      `;
-    }
-    grid.innerHTML = html;
+          `;
+        });
+        grid.innerHTML = html;
 
-  } catch (error) {
-    console.error("Error loading marketplace items: ", error);
-    grid.innerHTML = '<p class="col-span-4 text-center text-red-500">Error loading items.</p>';
-  }
-}
+      } catch (error) {
+        console.error("Error loading marketplace: ", error);
+        grid.innerHTML = '<p class="col-span-4 text-center text-red-500">Could not load panels. Please try again later.</p>';
+      }
+    }
 
 });
