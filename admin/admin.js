@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 3. HANDLE MODAL CLICKS (To show the images)
   // =================================================================
 
-  // --- LISTENER 1: Opening the modal (clicks INSIDE the dashboard) ---
+// --- LISTENER 1: Opening the modal (clicks INSIDE the dashboard) ---
   dashboardSection.addEventListener('click', async (e) => {
     
     // Check if a "View Details" button was clicked
@@ -335,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="space-y-3">
               <h4 class="font-semibold text-lg border-b pb-2">Seller Information</h4>
               <div><strong>Name:</strong> ${user.name || 'N/A'}</div>
-              <div><strong>Phone:</strong> ${user.phone || 'N/A'}</div>
+              <div><strong>Phone:</strong> ${query.sellerPhone || 'N/A'}</div>
               <div><strong>Address:</strong> ${user.address || 'N/A'}</div>
             </div>
             
@@ -344,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div><strong>Parameters:</strong> ${query.panelParams || 'N/A'}</div>
               <div><strong>Purchased From:</strong> ${query.purchasedFrom || 'N/A'}</div>
               <div><strong>Purchase Date:</strong> ${query.purchaseDate || 'N/A'}</div>
-            </div>
+              <div><strong>Price:</strong> ₹${query.price || 'N/A'}</div>
 
             <div class="space-y-2">
               <h4 class="font-semibold text-lg">Panel Image</h4>
@@ -390,7 +390,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Marketplace item clicked. Doc ID:", e.target.dataset.docId);
     }
   });
-
 
   // --- LISTENER 2: Modal Actions (clicks ANYWHERE on the page) ---
   document.addEventListener('click', async (e) => {
