@@ -181,6 +181,31 @@ document.addEventListener('DOMContentLoaded', () => {
       html += '</ul>';
       return html;
     }
+    async function loadMyQueries() {
+      if (!currentUser) return;
+
+      const sellContent = document.getElementById('my-sell-content');
+      const buyContent = document.getElementById('my-buy-content');
+      sellContent.innerHTML = '<p class="text-center">Loading...</p>';
+      buyContent.innerHTML = '<p class="text-center">Loading...</p>';
+
+      try {
+        // Run queries in parallel
+        const [sellSnapshot, buySnapshot] = await Promise.all([
+          db.collection('sellQueries').where('sellerId', '==', currentUser.uid).orderBy('submittedAt', 'desc').get(),
+          db.collection('buyQueries').where('buyerId', '==', currentUser.uid).orderBy('submittedAt', 'desc').get()
+        ]);
+
+        // Build and inject HTML
+        sellContent.innerHTML = buildQueryList(sellSnapshot, 'sellQueries');
+        buyContent.innerHTML = buildQueryList(buySnapshot, 'buyQueries');
+
+      } catch (error) {
+        console.error("Error loading user queries:", error);
+        sellContent.innerHTML = '<p class="text-center text-red-500">Error loading queries.</p>';
+        buyContent.innerHTML = '<p class="text-center text-red-500">Error loading queries.</p>';
+      }
+    }
 
     // --- (NEW) Helper to Compress and Upload a File ---
     // Returns a Promise that resolves with the Download URL
@@ -876,6 +901,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // --- (NEW) Load Main Marketplace ---
+        
 // --- (NEW) Load Main Marketplace ---
     async function loadMainMarketplace() {
       const grid = document.getElementById('marketplace-grid');
@@ -922,34 +948,9 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Error loading marketplace: ", error);
         grid.innerHTML = '<p class="col-span-4 text-center text-red-500">Could not load panels. Please try again later.</p>';
       }
+      
     }
-
-    // --- (NEW) Function to load user's queries ---
-    async function loadMyQueries() {
-      if (!currentUser) return;
-
-      const sellContent = document.getElementById('my-sell-content');
-      const buyContent = document.getElementById('my-buy-content');
-      sellContent.innerHTML = '<p class="text-center">Loading...</p>';
-      buyContent.innerHTML = '<p class="text-center">Loading...</p>';
-
-      try {
-        // Run queries in parallel
-        const [sellSnapshot, buySnapshot] = await Promise.all([
-          db.collection('sellQueries').where('sellerId', '==', currentUser.uid).orderBy('submittedAt', 'desc').get(),
-          db.collection('buyQueries').where('buyerId', '==', currentUser.uid).orderBy('submittedAt', 'desc').get()
-        ]);
-
-        // Build and inject HTML
-        sellContent.innerHTML = buildQueryList(sellSnapshot, 'sellQueries');
-        buyContent.innerHTML = buildQueryList(buySnapshot, 'buyQueries');
-
-      } catch (error) {
-        console.error("Error loading user queries:", error);
-        sellContent.innerHTML = '<p class="text-center text-red-500">Error loading queries.</p>';
-        buyContent.innerHTML = '<p class="text-center text-red-500">Error loading queries.</p>';
-      }
-    }
+    
 // --- Call the new function ---
 loadMainMarketplace();
     }
