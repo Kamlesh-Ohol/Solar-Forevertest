@@ -371,7 +371,38 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // --- "Interested?" Button (UPDATED with Profile Check) ---
+    async function checkUserProfile(onSuccess) {
+      if (!currentUser) {
+        alert("Please log in or sign up first.");
+        openModal('authModal');
+        resetAuthForms(); // Make sure forms are reset
+        // Ensure Login tab is active by default when asking to login
+        const loginTab = document.getElementById('login-tab-btn');
+         if(loginTab) loginTab.click();
+        return;
+      }
+
+      try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        
+        // Check if the document exists AND has a non-empty 'name' field
+        if (userDoc.exists && userDoc.data() && userDoc.data().name) {
+          // Profile exists and is complete. Proceed with the action.
+          onSuccess(); 
+        } else {
+          // Profile is missing or incomplete (no name).
+          alert("Please complete your profile (name and address) to continue.");
+          // Send them to the "Sign Up" tab, which now doubles as "Update Profile"
+          openModal('authModal');
+          // Programmatically click the signup tab
+          const signupTab = document.getElementById('signup-tab-btn');
+          if(signupTab) signupTab.click();
+        }
+      } catch (error) {
+        console.error("Error checking user profile:", error);
+        alert("Could not verify your profile. Please try again.");
+      }
+    }
     // --- "Interested?" Button (Corrected with Profile Check & Data Check) ---
     const interestedBtn = document.getElementById('interested-btn');
     if (interestedBtn) {
@@ -552,38 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-      async function checkUserProfile(onSuccess) {
-      if (!currentUser) {
-        alert("Please log in or sign up first.");
-        openModal('authModal');
-        resetAuthForms(); // Make sure forms are reset
-        // Ensure Login tab is active by default when asking to login
-        const loginTab = document.getElementById('login-tab-btn');
-         if(loginTab) loginTab.click();
-        return;
-      }
-
-      try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        
-        // Check if the document exists AND has a non-empty 'name' field
-        if (userDoc.exists && userDoc.data() && userDoc.data().name) {
-          // Profile exists and is complete. Proceed with the action.
-          onSuccess(); 
-        } else {
-          // Profile is missing or incomplete (no name).
-          alert("Please complete your profile (name and address) to continue.");
-          // Send them to the "Sign Up" tab, which now doubles as "Update Profile"
-          openModal('authModal');
-          // Programmatically click the signup tab
-          const signupTab = document.getElementById('signup-tab-btn');
-          if(signupTab) signupTab.click();
-        }
-      } catch (error) {
-        console.error("Error checking user profile:", error);
-        alert("Could not verify your profile. Please try again.");
-      }
-    }
+      
     // Function to clear old reCAPTCHA
     function clearRecaptcha() {
       if (window.recaptchaVerifier) {
