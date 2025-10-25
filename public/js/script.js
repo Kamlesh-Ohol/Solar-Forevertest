@@ -372,44 +372,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- "Interested?" Button (UPDATED with Profile Check) ---
+    // --- "Interested?" Button (Corrected with Profile Check & Data Check) ---
     const interestedBtn = document.getElementById('interested-btn');
     if (interestedBtn) {
       interestedBtn.addEventListener('click', () => {
         const productDetailModal = document.getElementById('productDetailModal');
         const productTitle = productDetailModal ? productDetailModal.dataset.productTitle : 'Unknown Product';
 
-        // Use the new profile check function
+        // Use the profile check function - THIS HANDLES THE LOGIN REQUIREMENT
         checkUserProfile(async () => {
           // This code only runs if the user is logged in AND has a profile
           try {
-            // We know the doc exists, so we can get it
+            // Fetch the user document
             const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const userName = userDoc.data().name;
-            const userLocation = userDoc.data().address;
+
+            // --- ADDED CHECKS ---
+            let userName = 'N/A';
+            let userLocation = 'N/A';
+            // Verify the document and its data exist before accessing fields
+            if (userDoc.exists && userDoc.data()) {
+                const userData = userDoc.data();
+                userName = userData.name || 'N/A'; // Use 'N/A' if name field is missing
+                userLocation = userData.address || 'N/A'; // Use 'N/A' if address field is missing
+            } else {
+                // This case should ideally be caught by checkUserProfile, but added for safety
+                console.warn("User document missing or empty despite profile check passing. Saving with N/A.");
+            }
+            // --- END ADDED CHECKS ---
+
+            const userPhone = currentUser.phoneNumber || 'N/A'; // Add fallback for phone
 
             // Save data to 'interestedQueries' collection
             await db.collection('interestedQueries').add({
               userId: currentUser.uid,
               userName: userName,
               userLocation: userLocation,
-              userPhone: currentUser.phoneNumber,
+              userPhone: userPhone,
               productTitle: productTitle,
               timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
-            
+
             // Successfully saved interest
             console.log('Interest registered for user:', currentUser.uid);
             closeModal(productDetailModal);
             openModal('interestedQueryModal'); // Show success modal
 
           } catch (error) {
-            console.error("Error saving interest: ", error);
-            alert("There was an error registering your interest. Please try again.");
+            // --- MORE DETAILED ERROR LOGGING ---
+            console.error("Error saving interest or fetching user data: ", error);
+            alert("There was an error registering your interest. Please check the console (F12) for details.");
             closeModal(productDetailModal);
           }
-        });
-      });
-    }
+        }); // End of checkUserProfile callback
+      }); // End of event listener
+    } // End of if (interestedBtn)
 
     // --- All "Close" Buttons ---
     const closeBtns = document.querySelectorAll('.close-modal-btn');
@@ -536,6 +552,38 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+      async function checkUserProfile(onSuccess) {
+      if (!currentUser) {
+        alert("Please log in or sign up first.");
+        openModal('authModal');
+        resetAuthForms(); // Make sure forms are reset
+        // Ensure Login tab is active by default when asking to login
+        const loginTab = document.getElementById('login-tab-btn');
+         if(loginTab) loginTab.click();
+        return;
+      }
+
+      try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        
+        // Check if the document exists AND has a non-empty 'name' field
+        if (userDoc.exists && userDoc.data() && userDoc.data().name) {
+          // Profile exists and is complete. Proceed with the action.
+          onSuccess(); 
+        } else {
+          // Profile is missing or incomplete (no name).
+          alert("Please complete your profile (name and address) to continue.");
+          // Send them to the "Sign Up" tab, which now doubles as "Update Profile"
+          openModal('authModal');
+          // Programmatically click the signup tab
+          const signupTab = document.getElementById('signup-tab-btn');
+          if(signupTab) signupTab.click();
+        }
+      } catch (error) {
+        console.error("Error checking user profile:", error);
+        alert("Could not verify your profile. Please try again.");
+      }
+    }
     // Function to clear old reCAPTCHA
     function clearRecaptcha() {
       if (window.recaptchaVerifier) {
@@ -622,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Sign-Up Flow --- (Updated: Removed Firestore save, added existing user check)
-    
+
     // --- Sign-Up Flow --- (Corrected Structure)
     if (signupForm) {
       signupForm.addEventListener('submit', (e) => {
@@ -955,7 +1003,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   ${item.panelParams}
                 </h3>
                 <p class="text-gray-600 text-sm">Condition: (Add field to form)</p>
-                <p class="text-blue-700 font-bold text-xl mt-2">$${item.price}</p>
+                <p class="text-blue-700 font-bold text-xl mt-2">₹${item.price}</p>
                 <button class="view-details-btn w-full mt-4 bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors" data-doc-id="${docId}">
                   View Details
                 </button>
