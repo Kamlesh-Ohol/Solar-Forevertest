@@ -567,43 +567,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Sign-In Flow ---
     if (loginForm) {
-      loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const loginButton = document.getElementById('login-button');
-        const phoneNumberInput = document.getElementById('login-phone');
-        const otpInput = document.getElementById('login-otp');
-
-        // Basic Validation
-        const rawPhoneNumber = phoneNumberInput.value.trim();
+      // Proceed with Firebase logic
         if (loginButton.textContent.includes('Send')) {
-            if (!rawPhoneNumber) {
-                alert('Please enter your 10-digit phone number.');
-                return;
-            }
-            if (!/^\d{10}$/.test(rawPhoneNumber)) {
-                alert('Please enter a valid 10-digit phone number.');
-                return;
-            }
-        }
-         if (loginButton.textContent.includes('Verify') && !otpInput.value) {
-            alert('Please enter the OTP.');
-            return;
-        }
+          // --- ENSURE CLEAR HAPPENS FIRST ---
+          clearRecaptcha(); 
+          // --- Now create the new one ---
+          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-login', { 
+              'size': 'invisible',
+              'callback': (response) => {
+                // reCAPTCHA solved, allow signInWithPhoneNumber.
+                // This callback is needed for invisible reCAPTCHA
+                console.log("reCAPTCHA verified"); 
+              },
+              'expired-callback': () => {
+                // Response expired. Ask user to solve reCAPTCHA again.
+                alert("reCAPTCHA expired. Please try sending OTP again.");
+                resetAuthForms(); // Reset if it expires
+              } 
+          });
+          
+          const phoneNumber = "+91" + phoneNumberInput.value; 
+          
+          // Render reCAPTCHA explicitly for invisible type
+          window.recaptchaVerifier.render().then((widgetId) => {
+            window.recaptchaWidgetId = widgetId;
+            // Now sign in
+            auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
+              .then(confirmationResult => {
+                window.confirmationResult = confirmationResult;
+                document.getElementById('login-phone-section').classList.add('hidden');
+                document.getElementById('login-otp-section').classList.remove('hidden');
+                loginButton.textContent = 'Verify OTP';
+                alert('OTP sent successfully!');
+              }).catch(error => {
+                  alert("Sign in failed: " + error.message);
+                  resetAuthForms(); // Reset on error
+              });
+          }).catch(error => {
+             alert("reCAPTCHA render failed: " + error.message);
+             resetAuthForms(); // Reset on render error
+          });
 
-        // Proceed with Firebase logic
-        if (loginButton.textContent.includes('Send')) {
-          clearRecaptcha();
-          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-login', { 'size': 'invisible' });
-          const phoneNumber = "+91" + phoneNumberInput.value; // Correct variable used
-          auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
-            .then(confirmationResult => {
-              window.confirmationResult = confirmationResult;
-              document.getElementById('login-phone-section').classList.add('hidden');
-              document.getElementById('login-otp-section').classList.remove('hidden');
-              loginButton.textContent = 'Verify OTP';
-              alert('OTP sent successfully!');
-            }).catch(error => alert("Sign in failed: " + error.message));
-        } else {
+        } else { // Verify OTP part
           const otp = otpInput.value;
           window.confirmationResult.confirm(otp).then(result => {
             alert("Successfully signed in!");
@@ -611,12 +616,14 @@ document.addEventListener('DOMContentLoaded', () => {
             resetAuthForms();
           }).catch(error => {
               alert("Invalid OTP: " + error.message);
+              // Don't necessarily reset here, let them retry OTP
           });
         }
-      });
     }
 
     // --- Sign-Up Flow --- (Updated: Removed Firestore save, added existing user check)
+    
+    // --- Sign-Up Flow --- (Corrected Structure)
     if (signupForm) {
       signupForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -628,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Basic Validation
         const rawPhoneNumberSignUp = phoneInput.value.trim();
-        if (signupButton.textContent.includes('Send')) {
+        if (signupButton.textContent.includes('Send')) { // Phase 1 Validation
              if (!nameInput.value || !addressInput.value || !rawPhoneNumberSignUp) {
                 alert('Please fill in all required fields (Name, Address, Phone Number).');
                 return;
@@ -637,41 +644,61 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Please enter a valid 10-digit phone number.');
                 return;
              }
-        } else {
+        } else { // Phase 2 Validation
              if (!otpInput.value) {
                 alert('Please enter the OTP.');
                 return;
             }
         }
 
-        // Proceed with Firebase logic
-        if (signupButton.textContent.includes('Send')) {
-          clearRecaptcha();
-          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-signup', { 'size': 'invisible' });
-          const phoneNumber = "+91" + phoneInput.value; // Correct variable used
-          auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
-            .then(confirmationResult => {
-              window.confirmationResult = confirmationResult;
-              document.getElementById('signup-details-section').classList.add('hidden');
-              document.getElementById('signup-otp-section').classList.remove('hidden');
-              signupButton.textContent = 'Create Account';
-              alert('OTP sent successfully!');
-            }).catch(error => {
-                alert("Sign up failed: " + error.message);
-                 document.getElementById('signup-details-section').classList.remove('hidden');
-                 document.getElementById('signup-otp-section').classList.add('hidden');
-                 signupButton.textContent = 'Send OTP & Sign Up';
-            });
-        } else {
-          // Phase 2: Verify OTP
-          const otp = otpInput.value;
-          // Get the name and address values again
-          const name = document.getElementById('signup-name').value;
-          const address = document.getElementById('signup-address').value;
+        // --- Proceed with Firebase logic ---
 
-          // Simple validation
-          if (!name || !address) {
-            alert("An error occurred. Your name and address were missing. Please try signing up again.");
+        // PHASE 1: Send OTP & Handle reCAPTCHA
+        if (signupButton.textContent.includes('Send') || signupButton.textContent.includes('Sign Up')) {
+          // --- ENSURE CLEAR HAPPENS FIRST ---
+          clearRecaptcha();
+          // --- Now create the new one ---
+          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-signup', {
+              'size': 'invisible',
+              'callback': (response) => {
+                console.log("reCAPTCHA verified");
+              },
+              'expired-callback': () => {
+                alert("reCAPTCHA expired. Please try sending OTP again.");
+                resetAuthForms();
+              }
+          });
+
+          const phoneNumber = "+91" + phoneInput.value;
+
+          // Render reCAPTCHA explicitly
+          window.recaptchaVerifier.render().then((widgetId) => {
+             window.recaptchaWidgetId = widgetId;
+             // Now sign in to send OTP
+             auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
+              .then(confirmationResult => {
+                window.confirmationResult = confirmationResult;
+                document.getElementById('signup-details-section').classList.add('hidden');
+                document.getElementById('signup-otp-section').classList.remove('hidden');
+                signupButton.textContent = 'Create Account'; // Ready for OTP verification
+                alert('OTP sent successfully!');
+              }).catch(error => {
+                  alert("Sign up failed (OTP send): " + error.message);
+                  resetAuthForms(); // Reset on error
+              });
+          }).catch(error => {
+             alert("reCAPTCHA render failed: " + error.message);
+             resetAuthForms(); // Reset on render error
+          });
+
+        // PHASE 2: Verify OTP & Create Profile
+        } else if (signupButton.textContent.includes('Create Account')) {
+          const otp = otpInput.value;
+          const name = nameInput.value; // Get name/address again (could be cleared)
+          const address = addressInput.value;
+
+          if (!name || !address) { // Re-validate name/address just in case
+            alert("Name and address seem to be missing. Please try signing up again.");
             resetAuthForms();
             return;
           }
@@ -679,43 +706,37 @@ document.addEventListener('DOMContentLoaded', () => {
           window.confirmationResult.confirm(otp)
             .then(result => {
                 const user = result.user;
-
-                // --- THIS IS THE KEY CHANGE ---
-                // We will *always* save/update the user's details.
-                // .set() with { merge: true } is perfect for this:
-                // 1. If the user doc doesn't exist, it creates it.
-                // 2. If it *does* exist, it just updates the name/address fields.
+                // Save/Update user details in Firestore
                 const savePromise = db.collection('users').doc(user.uid).set({
                     name: name,
                     address: address,
                     phone: user.phoneNumber,
-                    // This will update the timestamp on each "Sign Up"
-                    // but it ensures the data is fresh.
-                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp() 
-                }, { merge: true }); // { merge: true } is crucial
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
 
-                // Pass the original 'result' object to the next .then()
-                return savePromise.then(() => result);
+                return savePromise.then(() => result); // Pass result to next .then()
             })
             .then((result) => {
-               // Now we check if it was a new user *just for the alert message*
+               // Show appropriate success message
                if (result.additionalUserInfo && !result.additionalUserInfo.isNewUser) {
                    alert("Account details updated! Logging you in.");
                } else {
                    alert("Account created successfully!");
                }
-               
-               // Close and reset the form
                closeModal(authModal);
                resetAuthForms();
             })
             .catch(error => {
                 alert("Account creation/verification failed: " + error.message);
-                // Show the details section again on error
-                document.getElementById('signup-details-section').classList.remove('hidden');
-                document.getElementById('signup-otp-section').classList.add('hidden');
-                signupButton.textContent = 'Send OTP & Sign Up';
+                // Don't reset to details here, let them retry OTP if it was invalid
+                // If the error is different, they might need to restart
+                if (!error.message.toLowerCase().includes('invalid')) {
+                   resetAuthForms(); // Reset fully for non-OTP errors
+                }
             });
+        } else {
+            console.error("Signup button in unexpected state:", signupButton.textContent);
+            resetAuthForms(); // Reset if button text is wrong
         }
       });
     }
