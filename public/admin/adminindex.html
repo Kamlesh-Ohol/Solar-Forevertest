@@ -83,71 +83,6 @@
     </header>
 
     <main class="container mx-auto px-6 py-8">
-
-      <section id="metrics" class="mb-10">
-        <h2 class="text-2xl font-semibold mb-6 text-gray-700">Website Health & Metrics</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div class="bg-white p-6 rounded-lg shadow-md flex flex-col items-center justify-center">
-            <div class="relative w-32 h-32">
-              <svg class="w-full h-full" viewBox="0 0 36 36">
-                <path class="text-gray-200" stroke-width="3" fill="none" stroke="currentColor"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <path class="text-blue-600 circle-chart-progress" stroke-width="3" fill="none" stroke-linecap="round"
-                  stroke="currentColor" stroke-dasharray="60, 100"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              </svg>
-              <div class="absolute inset-0 flex items-center justify-center text-xl font-bold text-blue-900">60%</div>
-            </div>
-            <h3 class="mt-4 font-semibold text-gray-600">Server Load</h3>
-          </div>
-          <div class="bg-white p-6 rounded-lg shadow-md flex flex-col items-center justify-center">
-            <div class="relative w-32 h-32">
-              <svg class="w-full h-full" viewBox="0 0 36 36">
-                <path class="text-gray-200" stroke-width="3" fill="none" stroke="currentColor"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <path class="text-blue-600 circle-chart-progress" stroke-width="3" fill="none" stroke-linecap="round"
-                  stroke="currentColor" stroke-dasharray="45, 100"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              </svg>
-              <div class="absolute inset-0 flex items-center justify-center text-xl font-bold text-blue-900">45%</div>
-            </div>
-            <h3 class="mt-4 font-semibold text-gray-600">Database Capacity</h3>
-          </div>
-          <div class="bg-white p-6 rounded-lg shadow-md flex flex-col items-center justify-center">
-            <div class="relative w-32 h-32">
-              <svg class="w-full h-full" viewBox="0 0 36 36">
-                <path class="text-gray-200" stroke-width="3" fill="none" stroke="currentColor"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <path class="text-blue-600 circle-chart-progress" stroke-width="3" fill="none" stroke-linecap="round"
-                  stroke="currentColor" stroke-dasharray="85, 100"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              </svg>
-              <div class="absolute inset-0 flex flex-col items-center justify-center">
-                <span class="text-xl font-bold text-blue-900">8.5k</span>
-                <span class="text-xs text-gray-500">Visits</span>
-              </div>
-            </div>
-            <h3 class="mt-4 font-semibold text-gray-600">Daily Traffic</h3>
-          </div>
-          <div class="bg-white p-6 rounded-lg shadow-md flex flex-col items-center justify-center">
-            <div class="relative w-32 h-32">
-              <svg class="w-full h-full" viewBox="0 0 36 36">
-                <path class="text-gray-200" stroke-width="3" fill="none" stroke="currentColor"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <path class="text-blue-600 circle-chart-progress" stroke-width="3" fill="none" stroke-linecap="round"
-                  stroke="currentColor" stroke-dasharray="70, 100"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              </svg>
-              <div class="absolute inset-0 flex flex-col items-center justify-center">
-                <span class="text-xl font-bold text-blue-900">7k</span>
-                <span class="text-xs text-gray-500">Users</span>
-              </div>
-            </div>
-            <h3 class="mt-4 font-semibold text-gray-600">Monthly Active Users</h3>
-          </div>
-        </div>
-      </section>
-
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
         <section id="seller-queries">
           <h2 class="text-2xl font-semibold mb-6 text-gray-700">Pending Seller Verifications</h2>
@@ -236,95 +171,27 @@
         </div>
       </section>
       
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-      </div>
+     <main class="container mx-auto px-6 py-8">
+
       
 
-      <!-- <section id="marketplace-management">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+        <section id="seller-queries">
+          </section>
+
+        <section id="buyer-queries">
+          </section>
+      </div> 
+      
+      
+      <section id="marketplace-management">
         <h2 class="text-2xl font-semibold mb-6 text-gray-700">Marketplace Management</h2>
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          <!-- Panel 1 -->
-          <div class="bg-white rounded-lg overflow-hidden shadow-md border flex flex-col">
-            <img
-              src="https://images.pexels.com/photos/159397/solar-panel-array-power-sun-electricity-159397.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
-              class="w-full h-48 object-cover" alt="Solar Panel">
-            <div class="p-4 flex-1 flex flex-col">
-              <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Expert Verified</span>
-              <h3 class="font-bold mt-2 text-lg text-gray-800">350W Monocrystalline Panel</h3>
-              <p class="text-gray-600 text-sm">Condition: Excellent (2 years old)</p>
-              <p class="text-blue-700 font-bold text-xl mt-2">$120.00</p>
-              <div class="mt-4 flex-1 flex items-end">
-                <button data-modal-target="marketplacePanelModal1"
-                  class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors">View
-                  Details</button>
-              </div>
-            </div>
-          </div>
-          <!-- Panel 2 -->
-          <div class="bg-white rounded-lg overflow-hidden shadow-md border flex flex-col">
-            <img
-              src="https://images.pexels.com/photos/4148960/pexels-photo-4148960.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
-              class="w-full h-48 object-cover" alt="Solar Panel">
-            <div class="p-4 flex-1 flex flex-col">
-              <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Expert Verified</span>
-              <h3 class="font-bold mt-2 text-lg text-gray-800">400W Polycrystalline Panel</h3>
-              <p class="text-gray-600 text-sm">Condition: Good (4 years old)</p>
-              <p class="text-blue-700 font-bold text-xl mt-2">$95.00</p>
-              <div class="mt-4 flex-1 flex items-end">
-                <button data-modal-target="marketplacePanelModal2"
-                  class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors">View
-                  Details</button>
-              </div>
-            </div>
-          </div>
-          <!-- Panel 3 -->
-          <div class="bg-white rounded-lg overflow-hidden shadow-md border flex flex-col">
-            <img
-              src="https://images.pexels.com/photos/356073/pexels-photo-356073.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
-              class="w-full h-48 object-cover" alt="Solar Panel">
-            <div class="p-4 flex-1 flex flex-col">
-              <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Expert Verified</span>
-              <h3 class="font-bold mt-2 text-lg text-gray-800">320W Flexible Panel</h3>
-              <p class="text-gray-600 text-sm">Condition: Excellent (3 years old)</p>
-              <p class="text-blue-700 font-bold text-xl mt-2">$110.00</p>
-              <div class="mt-4 flex-1 flex items-end">
-                <button data-modal-target="marketplacePanelModal3"
-                  class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors">View
-                  Details</button>
-              </div>
-            </div>
-          </div>
-          <!-- Panel 4 -->
-          <div class="bg-white rounded-lg overflow-hidden shadow-md border" style="opacity:0.65;" flex flex-col>
-            <img
-              src="https://images.pexels.com/photos/2873951/pexels-photo-2873951.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
-              class="w-full h-48 object-cover" alt="Solar Panel">
-            <div class="p-4 flex-1 flex flex-col">
-              <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Pending Verification</span>
-              <h3 class="font-bold mt-2 text-lg text-gray-800">380W Bifacial Panel</h3>
-              <p class="text-gray-600 text-sm">Condition: Like New (1 year old)</p>
-              <p class="text-blue-700 font-bold text-xl mt-2">$150.00</p>
-              <div class="mt-4 flex-1 flex items-end">
-                <button data-modal-target="marketplacePanelModal4"
-                  class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors">View
-                  Details</button>
-              </div>
-            </div>
-          </div>
+          <p class="col-span-4 text-center">Loading marketplace items...</p>
         </div>
-    </main>
+      </section>
+      </main>
   </div>
-
-  <!-- Marketplace Panel Modal 1 -->
-  <section id="marketplace" class="py-20">
-  <div class="container mx-auto px-6">
-    <h2 class="section-title text-center mb-12">Browse Our Marketplace</h2>
-
-    <div id="marketplace-grid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-      </div>
-
-  </div>
-</section> -->
 
   <!-- Seller Verification Modal 1 -->
   <div id="sellerQueryModal1"

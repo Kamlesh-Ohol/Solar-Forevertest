@@ -233,17 +233,6 @@
 //     }
 //   });
 
-//   // --- LISTENER 2: Modal Actions (clicks ANYWHERE on the page) ---
-//   document.addEventListener('click', async (e) => {
-    
-//     // --- Handle closing the modal (with the 'x' button) ---
-//     if (e.target.matches('[data-modal-close]')) {
-//       const modalId = e.target.dataset.modalClose;
-//       const modal = document.getElementById(modalId);
-//       if (modal) {
-//         modal.classList.add('hidden');
-//       }
-//     }
 
 //     // --- Handle Approval/Disapproval ---
 //     if (e.target.matches('.action-btn')) {
@@ -464,7 +453,64 @@ document.addEventListener('DOMContentLoaded', () => {
   // =================================================================
   // 2. LOAD DATA FUNCTIONS
   // =================================================================
+// --- Function to Load Sold Item into Detail Modal ---
+async function loadSoldItemDetails(docId) {
+    const modal = document.getElementById('soldDetailModal');
+    if (!modal) return;
+    
+    // Show the modal and a loading state
+    modal.classList.remove('hidden');
+    modal.querySelector('.modal-content').innerHTML = '<div class="p-8 text-center">Loading sale details...</div>';
 
+    try {
+        const doc = await db.collection('SoldSolar').doc(docId).get();
+        if (!doc.exists) throw new Error("Sale record not found.");
+        const item = doc.data();
+
+        const saleDate = item.saleDate ? new Date(item.saleDate.seconds * 1000).toLocaleDateString() : 'N/A';
+
+        const modalContent = `
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="text-xl font-bold">Sold Item Details</h3>
+                <button data-modal-close="soldDetailModal" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto">
+                <div class="space-y-3">
+                    <h4 class="font-semibold text-lg border-b pb-2">Panel & Sale Info</h4>
+                    <div><strong>Item:</strong> ${item.panelInfo.panelParams || 'N/A'}</div>
+                    <div><strong>Sale Price:</strong> ₹${item.salePrice || 'N/A'}</div>
+                    <div><strong>Sale Date:</strong> ${saleDate}</div>
+                    <div><strong>Original Price:</strong> ₹${item.panelInfo.price || 'N/A'}</div>
+                </div>
+                <div class="space-y-3">
+                    <h4 class="font-semibold text-lg border-b pb-2">Buyer Information</h4>
+                    <div><strong>Name:</strong> ${item.buyerInfo.name || 'N/A'}</div>
+                    <div><strong>Phone:</strong> ${item.buyerInfo.phone || 'N/A'}</div>
+                    <div><strong>Address:</strong> ${item.buyerInfo.address || 'N/A'}</div>
+                </div>
+                <div class="space-y-3 md:col-span-2">
+                    <h4 class="font-semibold text-lg border-b pb-2">Seller Information</h4>
+                    <div><strong>Name:</strong> ${item.sellerInfo.name || 'N/A'}</div>
+                    <div><strong>Phone:</strong> ${item.sellerInfo.phone || 'N/A'}</div>
+                    <div><strong>Address:</strong> ${item.sellerInfo.address || 'N/A'}</div>
+                </div>
+                <div class="space-y-2 md:col-span-2"><h4 class="font-semibold text-lg">Panel Image</h4>
+                    <a href="${item.panelInfo.panelImageURL}" target="_blank">
+                      <img src="${item.panelInfo.panelImageURL}" alt="Panel Image" class="w-full h-64 object-cover rounded border">
+                    </a>
+                </div>
+            </div>
+            <div class="flex justify-end items-center p-4 bg-gray-50 border-t rounded-b-lg">
+                <button data-modal-close="soldDetailModal" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">Close</button>
+            </div>
+        `;
+        modal.querySelector('.modal-content').innerHTML = modalContent;
+
+    } catch (error) {
+        console.error("Error loading sold item details:", error);
+        modal.querySelector('.modal-content').innerHTML = `<div class="p-8 text-center text-red-500">Error: ${error.message}</div>`;
+    }
+}
   async function loadPendingVerifications() {
     const tableBody = document.querySelector('#seller-queries tbody');
     if (!tableBody) return;
@@ -803,7 +849,11 @@ async function saveMarketplaceChanges(e) {
         if (!docId) return;
         loadMarketplaceItemForEdit(docId);
     }
-    
+    if (e.target.matches('.view-sold-btn')) {
+        const docId = e.target.dataset.docId;
+        if (!docId) return;
+        await loadSoldItemDetails(docId); // <-- CALL THE NEW FUNCTION
+    }
     // --- Handle Unpublish/Remove button in Edit Modal ---
     if (e.target.matches('#unpublish-marketplace-btn')) {
         const docId = document.getElementById('edit-market-doc-id').value;
@@ -826,7 +876,7 @@ async function saveMarketplaceChanges(e) {
 
 // --- Add the Save form submission listener OUTSIDE the main click listener ---
 document.getElementById('edit-marketplace-form').addEventListener('submit', saveMarketplaceChanges);
-  });
+  
 
 
   // --- LISTENER 2: Modal Actions (clicks ANYWHERE on the page) ---
@@ -1011,3 +1061,4 @@ document.getElementById('edit-marketplace-form').addEventListener('submit', save
       }
     }
   }
+  });
