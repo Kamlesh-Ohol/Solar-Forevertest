@@ -24,6 +24,51 @@
 </head>
 
 <body class="bg-gray-50 text-gray-800">
+  <div id="myQueriesModal" class="modal-backdrop">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold">My Submissions</h2>
+        <button class="close-modal-btn text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+      </div>
+      
+      <div class="flex border-b mb-6">
+        <button id="my-sell-tab" class="tab-btn flex-1 py-2 font-semibold border-b-2 active">My Sell Requests</button>
+        <button id="my-buy-tab" class="tab-btn flex-1 py-2 font-semibold border-b-2">My Buy Requests</button>
+      </div>
+
+      <div id="my-sell-content" class="space-y-4">
+        <p class="text-center">Loading...</p>
+      </div>
+
+      <div id="my-buy-content" class="space-y-4 hidden">
+        <p class="text-center">Loading...</p>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="editBuyQueryModal" class="modal-backdrop">
+    <div class="modal-content">
+      <h2 class="text-2xl font-bold mb-6 text-center">Edit My Buy Request</h2>
+      <form id="edit-buy-form" class="space-y-4">
+        <div><label class="block text-sm font-medium">Required Wattage *</label>
+          <input type="number" id="edit-buy-wattage" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+        </div>
+        <div><label class="block text-sm font-medium">Budget (₹) *</label>
+          <input type="number" id="edit-buy-budget" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+        </div>
+        <div><label class="block text-sm font-medium">Preference?</label>
+          <input type="text" id="edit-buy-preference" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+        </div>
+        <button type="submit" id="save-buy-query-btn" data-doc-id="" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">
+          Save Changes
+        </button>
+        <button type="button" id="delete-buy-query-btn" data-doc-id="" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">
+          Delete Request
+        </button>
+      </form>
+    </div>
+  </div>
 
   <header id="header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
     <nav class="container mx-auto px-6 py-4 flex justify-between items-center">

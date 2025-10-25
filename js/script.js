@@ -134,7 +134,53 @@ document.addEventListener('DOMContentLoaded', () => {
         );
       });
     }
+    // --- (NEW) Helper to build query lists ---
+    function buildQueryList(queries, collectionName) {
+      if (queries.empty) {
+        return '<p class="text-center text-gray-500">No submissions found.</p>';
+      }
+      
+      let html = '<ul class="divide-y divide-gray-200">';
+      queries.forEach(doc => {
+        const item = doc.data();
+        const docId = doc.id;
+        
+        let title, details, statusClass, statusText;
 
+        if (collectionName === 'sellQueries') {
+          title = item.panelParams;
+          details = `Price: ₹${item.price || 'N/A'}`;
+        } else {
+          title = `Request for ${item.requiredWattage}W`;
+          details = `Budget: ₹${item.budget}`;
+        }
+
+        switch(item.status) {
+          case 'pending_review': statusClass = 'bg-yellow-100 text-yellow-800'; statusText = 'Pending Review'; break;
+          case 'approved': statusClass = 'bg-green-100 text-green-800'; statusText = 'Approved'; break;
+          case 'rejected': statusClass = 'bg-red-100 text-red-800'; statusText = 'Rejected'; break;
+          case 'sold': statusClass = 'bg-blue-100 text-blue-800'; statusText = 'Sold'; break;
+          case 'completed': statusClass = 'bg-blue-100 text-blue-800'; statusText = 'Completed'; break;
+          default: statusClass = 'bg-gray-100 text-gray-800'; statusText = 'Unknown';
+        }
+
+        html += `
+          <li class="p-4 flex justify-between items-center">
+            <div>
+              <p class="font-semibold">${title}</p>
+              <p class="text-sm text-gray-600">${details}</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-medium px-2.5 py-0.5 rounded-full ${statusClass}">${statusText}</span>
+              ${(collectionName === 'buyQueries' && item.status === 'pending_review') ? 
+                `<button class="edit-query-btn text-sm text-blue-600 hover:underline" data-doc-id="${docId}" data-collection="buyQueries">Edit</button>` : ''}
+            </div>
+          </li>
+        `;
+      });
+      html += '</ul>';
+      return html;
+    }
 
     // --- (NEW) Helper to Compress and Upload a File ---
     // Returns a Promise that resolves with the Download URL
@@ -260,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
           openModal('productDetailModal');
 
           try {
+
             // Fetch the item's details from Firestore
             const doc = await db.collection('sellQueries').doc(docId).get();
             if (!doc.exists) {
@@ -444,18 +491,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
 
     // --- CORE AUTH LOGIC ---
+    // --- CORE AUTH LOGIC ---
     auth.onAuthStateChanged(user => {
       currentUser = user;
       const loginBtnDesktop = document.getElementById('login-signup-btn-desktop');
       const loginBtnMobile = document.getElementById('login-signup-btn-mobile');
+      const myQueriesBtn = document.getElementById('my-queries-btn'); // <-- ADD THIS
+
       if (user) {
         console.log("User is signed in:", user.phoneNumber);
         if (loginBtnDesktop) loginBtnDesktop.textContent = 'Logout';
         if (loginBtnMobile) loginBtnMobile.textContent = 'Logout';
+        if (myQueriesBtn) myQueriesBtn.classList.remove('hidden'); // <-- ADD THIS
       } else {
         console.log("User is signed out.");
         if (loginBtnDesktop) loginBtnDesktop.textContent = 'Login / Sign Up';
         if (loginBtnMobile) loginBtnMobile.textContent = 'Login / Sign Up';
+        if (myQueriesBtn) myQueriesBtn.classList.add('hidden'); // <-- ADD THIS
       }
     });
 
@@ -872,10 +924,136 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // --- (NEW) Function to load user's queries ---
+    async function loadMyQueries() {
+      if (!currentUser) return;
+
+      const sellContent = document.getElementById('my-sell-content');
+      const buyContent = document.getElementById('my-buy-content');
+      sellContent.innerHTML = '<p class="text-center">Loading...</p>';
+      buyContent.innerHTML = '<p class="text-center">Loading...</p>';
+
+      try {
+        // Run queries in parallel
+        const [sellSnapshot, buySnapshot] = await Promise.all([
+          db.collection('sellQueries').where('sellerId', '==', currentUser.uid).orderBy('submittedAt', 'desc').get(),
+          db.collection('buyQueries').where('buyerId', '==', currentUser.uid).orderBy('submittedAt', 'desc').get()
+        ]);
+
+        // Build and inject HTML
+        sellContent.innerHTML = buildQueryList(sellSnapshot, 'sellQueries');
+        buyContent.innerHTML = buildQueryList(buySnapshot, 'buyQueries');
+
+      } catch (error) {
+        console.error("Error loading user queries:", error);
+        sellContent.innerHTML = '<p class="text-center text-red-500">Error loading queries.</p>';
+        buyContent.innerHTML = '<p class="text-center text-red-500">Error loading queries.</p>';
+      }
+    }
 // --- Call the new function ---
 loadMainMarketplace();
     }
 
+    // --- (NEW) Event Listeners for "My Queries" Modals ---
+
+    // Open "My Queries" modal
+    document.getElementById('my-queries-btn').addEventListener('click', () => {
+      loadMyQueries(); // Load fresh data
+      openModal('myQueriesModal');
+      // Default to "Sell" tab
+      document.getElementById('my-sell-tab').click();
+    });
+
+    // Tab switching in "My Queries" modal
+    document.getElementById('my-sell-tab').addEventListener('click', () => {
+      document.getElementById('my-sell-tab').classList.add('active');
+      document.getElementById('my-buy-tab').classList.remove('active');
+      document.getElementById('my-sell-content').classList.remove('hidden');
+      document.getElementById('my-buy-content').classList.add('hidden');
+    });
+    document.getElementById('my-buy-tab').addEventListener('click', () => {
+      document.getElementById('my-buy-tab').classList.add('active');
+      document.getElementById('my-sell-tab').classList.remove('active');
+      document.getElementById('my-buy-content').classList.remove('hidden');
+      document.getElementById('my-sell-content').classList.add('hidden');
+    });
+
+
+    // --- (NEW) Event Listener for Edit/Save/Delete ---
+    // We listen on the whole body to catch clicks on dynamic buttons
+    document.body.addEventListener('click', async (e) => {
+      
+      // Handle "Edit" button click
+      if (e.target.matches('.edit-query-btn')) {
+        const docId = e.target.dataset.docId;
+        const collection = e.target.dataset.collection;
+        
+        if (collection === 'buyQueries') {
+          try {
+            const doc = await db.collection('buyQueries').doc(docId).get();
+            if (!doc.exists) throw new Error("Document not found.");
+            
+            const data = doc.data();
+            // Populate the edit modal
+            document.getElementById('edit-buy-wattage').value = data.requiredWattage;
+            document.getElementById('edit-buy-budget').value = data.budget;
+            document.getElementById('edit-buy-preference').value = data.preference;
+            document.getElementById('save-buy-query-btn').dataset.docId = docId;
+            document.getElementById('delete-buy-query-btn').dataset.docId = docId;
+
+            closeModal(document.getElementById('myQueriesModal'));
+            openModal('editBuyQueryModal');
+          } catch (error) {
+            console.error("Error loading query for edit:", error);
+            alert("Error: " + error.message);
+          }
+        }
+        // You can add an 'else if (collection === 'sellQueries')' here later
+      }
+    });
+
+    // Handle "Save Changes" on edit form
+    document.getElementById('edit-buy-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const docId = document.getElementById('save-buy-query-btn').dataset.docId;
+      if (!docId) return;
+
+      const newWattage = document.getElementById('edit-buy-wattage').value;
+      const newBudget = document.getElementById('edit-buy-budget').value;
+      const newPreference = document.getElementById('edit-buy-preference').value;
+
+      try {
+        await db.collection('buyQueries').doc(docId).update({
+          requiredWattage: Number(newWattage),
+          budget: Number(newBudget),
+          preference: newPreference || 'N/A'
+        });
+
+        alert("Request updated!");
+        closeModal(document.getElementById('editBuyQueryModal'));
+        
+      } catch (error) {
+        console.error("Error updating document:", error);
+        alert("Error: " + error.message);
+      }
+    });
+
+    // Handle "Delete" button
+    document.getElementById('delete-buy-query-btn').addEventListener('click', async (e) => {
+      const docId = e.target.dataset.docId;
+      if (!docId) return;
+
+      if (confirm("Are you sure you want to delete this request?")) {
+        try {
+          await db.collection('buyQueries').doc(docId).delete();
+          alert("Request deleted.");
+          closeModal(document.getElementById('editBuyQueryModal'));
+        } catch (error) {
+          console.error("Error deleting document:", error);
+          alert("Error: " + error.message);
+        }
+      }
+    });
 
   } catch (error) {
     console.error("Firebase initialization failed:", error);
