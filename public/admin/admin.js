@@ -571,9 +571,9 @@ document.addEventListener('DOMContentLoaded', () => {
               <p class="text-gray-600 text-sm">Condition: (Add field to form)</p>
               <p class="text-blue-700 font-bold text-xl mt-2">₹${item.price || 'N/A'}</p>
               <div class="mt-4 flex-1 flex items-end">
-                <button data-modal-target="marketplaceModal" data-doc-id="${docId}"
-                  class="view-marketplace-item-btn w-full text-white font-semibold py-2 rounded-lg transition-colors bg-blue-600 hover:bg-blue-700">
-                  View Details
+                <button data-doc-id="${docId}"
+                  class="edit-marketplace-btn w-full text-white font-semibold py-2 rounded-lg transition-colors bg-blue-600 hover:bg-blue-700">
+                  Edit Listing
                 </button>
               </div>
             </div>
@@ -628,6 +628,68 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // --- Function to Load Marketplace Item into Edit Modal ---
+async function loadMarketplaceItemForEdit(docId) {
+    const modal = document.getElementById('editMarketplaceModal');
+    const form = document.getElementById('edit-marketplace-form');
+    if (!modal || !form) return;
+
+    modal.classList.remove('hidden');
+
+    try {
+        const doc = await db.collection('sellQueries').doc(docId).get();
+        if (!doc.exists) throw new Error("Listing not found.");
+        const data = doc.data();
+
+        // Populate Form Fields
+        document.getElementById('edit-market-doc-id').value = docId;
+        document.getElementById('edit-market-params').value = data.panelParams || '';
+        document.getElementById('edit-market-price').value = data.price || 0;
+        
+    } catch (error) {
+        console.error("Error loading marketplace item:", error);
+        alert(`Error loading data: ${error.message}`);
+        modal.classList.add('hidden');
+    }
+}
+
+
+// --- Function to Save/Update Marketplace Item ---
+async function saveMarketplaceChanges(e) {
+    e.preventDefault();
+    const docId = document.getElementById('edit-market-doc-id').value;
+    const newPanelParams = document.getElementById('edit-market-params').value;
+    const newPrice = Number(document.getElementById('edit-market-price').value);
+    const saveButton = document.getElementById('save-marketplace-btn');
+    
+    if (!docId || !newPanelParams || isNaN(newPrice)) {
+        alert("Please provide valid data.");
+        return;
+    }
+
+    saveButton.disabled = true;
+    saveButton.textContent = 'Saving...';
+
+    try {
+        await db.collection('sellQueries').doc(docId).update({
+            panelParams: newPanelParams,
+            price: newPrice,
+            // You could optionally set the status back to pending_review 
+            // if you require re-verification after any edit, but for small 
+            // edits like price/name, we'll keep it 'approved' for now.
+        });
+
+        alert("Listing updated successfully!");
+        document.getElementById('editMarketplaceModal').classList.add('hidden');
+        loadMarketplaceItems(); // Refresh the list
+    } catch (error) {
+        console.error("Error updating marketplace item:", error);
+        alert(`Update failed: ${error.message}`);
+    } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Changes';
+    }
+}
 
   // =================================================================
   // 3. MODAL AND ACTION LISTENERS
@@ -735,72 +797,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- (NEW) Handle Sold Item "View" button ---
-    if (e.target.matches('.view-sold-btn')) {
-      const docId = e.target.dataset.docId;
-      if (!docId) return;
-
-      const modal = document.getElementById('soldDetailModal');
-      if (!modal) return;
-      
-      modal.classList.remove('hidden');
-      modal.querySelector('.modal-content').innerHTML = '<div class="p-8 text-center">Loading details...</div>';
-
-      try {
-        const doc = await db.collection('SoldSolar').doc(docId).get();
-        if (!doc.exists) throw new Error("Document not found.");
-        const item = doc.data();
-        
-        const saleDate = item.saleDate ? new Date(item.saleDate.seconds * 1000).toLocaleString() : 'N/A';
-        
-        const modalContent = `
-          <div class="flex justify-between items-center p-4 border-b">
-            <h3 class="text-xl font-bold">Sold Item Details</h3>
-            <button data-modal-close="soldDetailModal" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
-          </div>
-          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto">
-            <div class="space-y-3 md:col-span-2">
-              <h4 class="font-semibold text-lg border-b pb-2">Sale Information</h4>
-              <div><strong>Sale Date:</strong> ${saleDate}</div>
-              <div><strong>Final Sale Price:</strong> ₹${item.salePrice || 0}</div>
-            </div>
-            
-            <div class="space-y-3">
-              <h4 class="font-semibold text-lg border-b pb-2">Buyer Information</h4>
-              <div><strong>Name:</strong> ${item.buyerInfo.name || 'N/A'}</div>
-              <div><strong>Phone:</strong> ${item.buyerInfo.phone || 'N/A'}</div>
-              <div><strong>Address:</strong> ${item.buyerInfo.address || 'N/A'}</div>
-            </div>
-            
-            <div class="space-y-3">
-              <h4 class="font-semibold text-lg border-b pb-2">Seller Information</h4>
-              <div><strong>Name:</strong> ${item.sellerInfo.name || 'N/A'}</div>
-              <div><strong>Phone:</strong> ${item.sellerInfo.phone || 'N/A'}</div>
-              <div><strong>Address:</strong> ${item.sellerInfo.address || 'N/A'}</div>
-            </div>
-
-            <div class="space-y-3 md:col-span-2">
-              <h4 class="font-semibold text-lg border-b pb-2">Panel Information</h4>
-              <div><strong>Parameters:</strong> ${item.panelInfo.panelParams || 'N/A'}</div>
-              <div><strong>Purchased From:</strong> ${item.panelInfo.purchasedFrom || 'N/A'}</div>
-              <div><strong>Purchase Date:</strong> ${item.panelInfo.purchaseDate || 'N/A'}</div>
-              <a href="${item.panelInfo.panelImageURL}" target="_blank">
-                <img src="${item.panelInfo.panelImageURL}" alt="Panel Image" class="w-full h-48 object-cover rounded border mt-2">
-              </a>
-            </div>
-          </div>
-          <div class="flex justify-end items-center p-4 bg-gray-50 border-t rounded-b-lg">
-            <button data-modal-close="soldDetailModal"
-              class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">
-              Close
-            </button>
-          </div>
-        `;
-        modal.querySelector('.modal-content').innerHTML = modalContent;
-      } catch (error) {
-        console.error("Error loading sold item details: ", error);
-        modal.querySelector('.modal-content').innerHTML = `<div class="p-8 text-center text-red-500">Error: ${error.message}</div>`;
-      }
+    // --- Handle Marketplace "Edit Listing" button ---
+    if (e.target.matches('.edit-marketplace-btn')) {
+        const docId = e.target.dataset.docId;
+        if (!docId) return;
+        loadMarketplaceItemForEdit(docId);
     }
+    
+    // --- Handle Unpublish/Remove button in Edit Modal ---
+    if (e.target.matches('#unpublish-marketplace-btn')) {
+        const docId = document.getElementById('edit-market-doc-id').value;
+        if (!docId) return;
+        
+        if (confirm("Are you sure you want to unpublish this listing? It will be moved back to the Pending Verifications list.")) {
+            try {
+                await db.collection('sellQueries').doc(docId).update({ status: 'pending_review' });
+                alert("Listing unpublished and moved to Pending Verifications.");
+                document.getElementById('editMarketplaceModal').classList.add('hidden');
+                loadMarketplaceItems(); 
+                loadPendingVerifications();
+            } catch (error) {
+                console.error("Error unpublishing item:", error);
+                alert(`Unpublish failed: ${error.message}`);
+            }
+        }
+    }
+}); // End of dashboardSection.addEventListener('click', ...)
+
+// --- Add the Save form submission listener OUTSIDE the main click listener ---
+document.getElementById('edit-marketplace-form').addEventListener('submit', saveMarketplaceChanges);
   });
 
 
@@ -986,4 +1011,3 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }
-});
