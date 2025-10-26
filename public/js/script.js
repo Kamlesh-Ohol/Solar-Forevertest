@@ -1,16 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
 
   // --- PASTE YOUR FIREBASE CONFIG OBJECT HERE ---
-  const firebaseConfig = {
-    apiKey: "AIzaSyBFazdEmqatvQaFgrEiC7btxohKXbkGOyw",
-    authDomain: "solar-forever.firebaseapp.com",
-    databaseURL: "https://solar-forever-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "solar-forever",
-    storageBucket: "solar-forever.firebasestorage.app", // Corrected bucket name
-    messagingSenderId: "15804210993",
-    appId: "1:15804210993:web:f031750b9651e609b69a10",
-    measurementId: "G-T6955CSP1N"
-  };
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBFazdEmqatvQaFgrEiC7btxohKXbkGOyw",
+  authDomain: "solar-forever.firebaseapp.com",
+  databaseURL: "https://solar-forever-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "solar-forever",
+  storageBucket: "solar-forever.firebasestorage.app",
+  messagingSenderId: "15804210993",
+  appId: "1:15804210993:web:f031750b9651e609b69a10",
+  measurementId: "G-T6955CSP1N"
+};
 
   // --- Initialize Firebase ---
   try {
@@ -614,8 +615,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- Sign-In Flow ---
+    // --- Sign-In Flow ---
     if (loginForm) {
-      // Proceed with Firebase logic
+      // Define elements specific to the login form
+      const loginButton = document.getElementById('login-button');
+      const phoneNumberInput = document.getElementById('login-phone');
+      const otpInput = document.getElementById('login-otp');
+      
+      // Add a submit event listener to the form
+      loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        // Basic Validation
+        const rawPhoneNumberLogin = phoneNumberInput.value.trim();
+        if (loginButton.textContent.includes('Send')) { // Phase 1 Validation
+             if (!rawPhoneNumberLogin || !/^\d{10}$/.test(rawPhoneNumberLogin)) {
+                alert('Please enter a valid 10-digit phone number.');
+                return;
+             }
+        } else { // Phase 2 Validation
+             if (!otpInput.value) {
+                alert('Please enter the OTP.');
+                return;
+            }
+        }
+
+        // Proceed with Firebase logic
         if (loginButton.textContent.includes('Send')) {
           // --- ENSURE CLEAR HAPPENS FIRST ---
           clearRecaptcha(); 
@@ -624,7 +649,6 @@ document.addEventListener('DOMContentLoaded', () => {
               'size': 'invisible',
               'callback': (response) => {
                 // reCAPTCHA solved, allow signInWithPhoneNumber.
-                // This callback is needed for invisible reCAPTCHA
                 console.log("reCAPTCHA verified"); 
               },
               'expired-callback': () => {
@@ -634,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
               } 
           });
           
-          const phoneNumber = "+91" + phoneNumberInput.value; 
+          const phoneNumber = "+91" + rawPhoneNumberLogin; // Use the validated/cleaned input
           
           // Render reCAPTCHA explicitly for invisible type
           window.recaptchaVerifier.render().then((widgetId) => {
@@ -667,6 +691,7 @@ document.addEventListener('DOMContentLoaded', () => {
               // Don't necessarily reset here, let them retry OTP
           });
         }
+      }); // END of loginForm event listener
     }
 
     // --- Sign-Up Flow --- (Updated: Removed Firestore save, added existing user check)
